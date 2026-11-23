@@ -6,7 +6,7 @@ Three entry points, zero runtime dependencies (`node:sqlite` and `fetch` only). 
 
 - **Library (ESM)** — what [dj-mcp](https://github.com/kenjitayama/dj-mcp) imports.
 - **CLI** (`bin/djdb`) — `init`, `refresh`, `status`, and the other maintenance commands.
-- **MCP server** (`bin/djdb-mcp-server`) — a standalone, read-oriented server for lookups. It returns recording MBIDs and ISRCs only (it has no Spotify credentials) and opens the online DB read-only, so it never records recommendation runs.
+- **MCP server** (`bin/djdb-mcp-server`) — a standalone, read-oriented server for lookups. It returns recording MBIDs and ISRCs only (it has no Spotify credentials) and opens the run log (`djdb-online.sqlite`, called the online DB in the code and CLI) read-only, so it never records recommendation runs. The run log is a local SQLite file next to the main DB. It records recommendation runs, the playback IDs found per market, and which tracks were shown or queued.
 
 dj-mcp remains the user-facing playback client. If this package is not installed, dj-mcp behaves exactly as it does today.
 
@@ -66,14 +66,14 @@ Commands:
 | `djdb status` | Lock (reported only: a running refresh does not stop recommend), last refresh and whether it was incomplete (暫定), library counts. `--json` available. |
 | `djdb account-rename <name>` | After a ListenBrainz username change. The token must belong to `<name>`. |
 | `djdb unlock` | Delete `djdb.lock` if the process that holds it is gone. A running holder keeps it (exit 1). |
-| `djdb online-reset --yes` | Empty the online DB in place. Without `--yes` nothing changes. Restart running dj-mcp processes afterwards. |
+| `djdb online-reset --yes` | Empty the run log in place. Without `--yes` nothing changes. Restart running dj-mcp processes afterwards. |
 
 No command prompts. `--db <path>` overrides the main database path. `djdb refresh --export <dir>` passes a ListenBrainz export: download the ZIP from ListenBrainz, extract it, and pass the folder that holds `user.json` and `listens/`. The export must belong to the initialized account. If an import stops midway, run the same command again; it finishes without duplicates. `--listens-full-history` is the explicit opt-in to page the entire history through `GET /1/user/{user}/listens` when no export is available.
 
 ### Where files live
 
 - Main DB path: `DJDB_PATH` → `~/.config/djdb-mcp/config.json` `dbPath` → `${XDG_DATA_HOME:-~/.local/share}/djdb-mcp/djdb.sqlite`
-- Online DB `djdb-online.sqlite` and `djdb.lock` sit next to the main DB.
+- The run log `djdb-online.sqlite` and `djdb.lock` sit next to the main DB.
 - ListenBrainz token file: `~/.config/djdb-mcp/lb-token.json` (mode `0600`). Never commit this file. Example only (placeholder values, never a real token):
 
 ```json
@@ -143,7 +143,7 @@ Nothing else in `lib/` is public.
 - `recordEvent(online, runId, rank, kind)`. If `runId` is missing or unknown, nothing is written and `{ error: 'unknown_run' }` is returned (non-fatal for dj-mcp).
 - `explain(online, runId)` returns the run's parameters and items.
 
-`openReader({ online: 'write' })` opens the main DB read-only, creates and migrates the online DB if needed (`BEGIN IMMEDIATE` → re-read `user_version` → migrate → bump → COMMIT), and binds a fresh one to the main DB's `lb_account_key`. An online DB bound to another main DB is never emptied automatically: `recommend()` returns `disabled` with `online_db_mismatch` until you run `djdb online-reset --yes`. `openReader({ online: 'read' })` never creates the online DB.
+`openReader({ online: 'write' })` opens the main DB read-only, creates and migrates the run log if needed (`BEGIN IMMEDIATE` → re-read `user_version` → migrate → bump → COMMIT), and binds a fresh one to the main DB's `lb_account_key`. A run log bound to another main DB is never emptied automatically: `recommend()` returns `disabled` with `online_db_mismatch` until you run `djdb online-reset --yes`. `openReader({ online: 'read' })` never creates the run log.
 
 ## How refresh works
 
