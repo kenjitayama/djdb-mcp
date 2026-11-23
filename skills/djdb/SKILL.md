@@ -20,8 +20,8 @@ It prints JSON with `--json`; on failure it exits 1 and prints `{"error":{code,m
 ## Before anything
 - `no database`: the user must run `djdb init` (ListenBrainz token via `LISTENBRAINZ_TOKEN`) then `djdb refresh --export <listenbrainz-export.json>`. Later refreshes are incremental.
 - `no snapshot` / `schema changed`: run `djdb refresh`.
-- `stale lock`: show the pid and time from `djdb status`, then the user may run `djdb unlock --force`.
-- `main_db_key mismatch`: recommend is disabled; suggest `djdb online-reset` after confirming.
+- `stale lock`: show the pid and time from `djdb status`. `djdb unlock` removes it only if that pid is gone.
+- `main_db_key mismatch`: recommend is disabled; suggest `djdb online-reset --yes` once the user agrees.
 - Never print the ListenBrainz token. Never submit listens or feedback to ListenBrainz from this package.
 
 ## What to call

@@ -55,13 +55,13 @@ Commands:
 | `djdb init` | Create the databases and bind them to one ListenBrainz account. Token from `LISTENBRAINZ_TOKEN` or the token file. |
 | `djdb refresh` | Lock, sync, match, build the graph and popularity, then publish a snapshot. This is the usual way data changes. First sync: `--export <file>`. Later syncs use `/listens` deltas. `--listens-full-history` pages the whole history only when an export is unavailable. |
 | `djdb status` | Lock, dirty flag, latest snapshot, provisional snapshots, library counts. `--json` available. |
-| `djdb account-rename <name>` | After a ListenBrainz username change, and only with a matching token plus confirmation. |
-| `djdb unlock --force` | Show the lock holder and delete the lock after confirmation. |
+| `djdb account-rename <name>` | After a ListenBrainz username change. The token must belong to `<name>`. |
+| `djdb unlock` | Delete `djdb.lock` if the process that holds it is gone. A running holder keeps it (exit 1). |
 | `djdb snapshot-pin <id> <label>` | Pin a verified snapshot (for later evaluation). |
 | `djdb restore <file>` | Restore a backup in place (`backup()`, not a file rename). Then refresh to publish a new snapshot. |
-| `djdb online-reset` | Empty the online DB in place after confirmation. Restart running dj-mcp processes afterwards. |
+| `djdb online-reset --yes` | Empty the online DB in place. Without `--yes` nothing changes. Restart running dj-mcp processes afterwards. |
 
-Add `--yes` to skip confirmation prompts in scripts. `--db <path>` overrides the main database path. `djdb refresh --export <file>` passes a ListenBrainz export (extracted JSON). `--listens-full-history` is the explicit opt-in to page the entire history through `GET /1/user/{user}/listens` when no export is available.
+No command prompts. `--db <path>` overrides the main database path. `djdb refresh --export <file>` passes a ListenBrainz export (extracted JSON). `--listens-full-history` is the explicit opt-in to page the entire history through `GET /1/user/{user}/listens` when no export is available.
 
 ### Where files live
 

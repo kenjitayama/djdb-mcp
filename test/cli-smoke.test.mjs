@@ -21,7 +21,7 @@ test('CLI help does not mention a bare unscoped bin invocation', async () => {
   assert.match(text, /npm exec --prefix/);
 });
 
-test('CLI init, status, refresh, unlock --force --yes', async () => {
+test('CLI init, status, refresh, unlock, online-reset', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'djdb-cli-'));
   const dbPath = join(dir, 'djdb.sqlite');
   const client = mockClient({
@@ -37,8 +37,26 @@ test('CLI init, status, refresh, unlock --force --yes', async () => {
   assert.equal(await runCli(['status', '--json'], common), 1); // no snapshot yet
   assert.equal(await runCli(['refresh', '--listens-full-history'], common), 0);
   assert.equal(await runCli(['status', '--json'], common), 0);
-  assert.equal(await runCli(['unlock', '--force', '--yes'], common), 0);
+  assert.equal(await runCli(['unlock'], common), 0);
+
+  const { DatabaseSync } = await import('node:sqlite');
+  const online = new DatabaseSync(join(dir, 'djdb-online.sqlite'));
+  online.exec(`INSERT INTO rec_run (created_at, snapshot_id, snapshot_sha256, mode, algo_version, params_hash, params_json) VALUES (1, 1, '${'a'.repeat(64)}', 'discover', 'v11', 'h', '{}')`);
+  const runs = () => online.prepare('SELECT count(*) AS n FROM rec_run').get().n;
+  logs.length = 0;
+  assert.equal(await runCli(['online-reset'], common), 1);
+  assert.match(logs.at(-1), /confirm_required/);
+  assert.equal(runs(), 1);
   assert.equal(await runCli(['online-reset', '--yes'], common), 0);
+  assert.equal(runs(), 0);
+  online.close();
+
+  assert.equal(await runCli(['account-rename', 'someone-else'], common), 1);
+  assert.match(logs.at(-1), /lb_user_mismatch/);
+  assert.equal(await runCli(['account-rename', 'renamed'], { ...common, client: mockClient({ user: 'renamed' }) }), 0);
+  logs.length = 0;
+  await runCli(['status', '--json'], common);
+  assert.equal(JSON.parse(logs.at(-1)).lb_user, 'renamed');
 });
 
 test('MCP stdio: initialize, tools/list, tools/call(status) against the real server binary', async () => {

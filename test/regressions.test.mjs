@@ -123,7 +123,7 @@ test('#10 an init that fails midway leaves no database behind and can be rerun',
   assert.equal(r.lb_user, 'tester');
 });
 
-test('#1 unlock refuses a lock whose pid is alive and never asks', { todo: 'J4' }, async () => {
+test('#1 unlock refuses a lock whose pid is alive and never asks', async () => {
   const root = H.tmpRoot();
   const lockPath = join(root, 'djdb.lock');
   writeFileSync(lockPath, JSON.stringify({ pid: process.pid, token: 'x', command: 'refresh', started_at: 1 }));
@@ -134,7 +134,7 @@ test('#1 unlock refuses a lock whose pid is alive and never asks', { todo: 'J4' 
   assert.equal(outs.at(-1)?.error?.code, 'lock_held');
 });
 
-test('#1 unlock removes a lock whose pid is gone, without a prompt', { todo: 'J4' }, async () => {
+test('#1 unlock removes a lock whose pid is gone, without a prompt', async () => {
   const root = H.tmpRoot();
   const lockPath = join(root, 'djdb.lock');
   const dead = spawnSync(process.execPath, ['-e', '']).pid;
