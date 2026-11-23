@@ -90,3 +90,42 @@ test('a pair whose plays gain the same MBID stays paired', async () => {
     handle.close();
   }
 });
+
+// ---- a changed LB mapping leaves no stale match behind ----
+
+import { library, withArtistMbid, ARTIST_C, REC_KNOWN, REC_UNKNOWN } from './library.mjs';
+import { recommend } from '../lib/recommend.mjs';
+
+const remapLight = (mapped) => withArtistMbid(listen({ at: 1_700_000_000 + 41 * 86400, msid: 'c1', artist: 'Light', title: 'Known', mapped }), ARTIST_C);
+const discover = async (handle) => (await recommend(handle, { mode: 'discover', n: 5, record: false, cutoffAt: 2_000_000_000 }));
+
+// LB remaps the one Light play from Known to Unknown. A stale track would make discover offer
+// Unknown, the recording that was actually played.
+test('a changed mapping clears the whole match, and recommend before the match stage agrees with after it', async () => {
+  const { handle } = await library();
+  const db = handle.main;
+  try {
+    assert.deepEqual((await discover(handle)).items.map((i) => i.recording_mbid), [REC_UNKNOWN]);
+    ingestListens(db, [remapLight(REC_UNKNOWN)]);
+    const row = { ...db.prepare(`SELECT artist_id, track_id, match_method, match_version, matched_at FROM play WHERE source_key LIKE '%c1%'`).get() };
+    assert.deepEqual(row, { artist_id: null, track_id: null, match_method: null, match_version: null, matched_at: null });
+    const before = (await discover(handle)).items.map((i) => i.recording_mbid);
+    await matchStage(handle);
+    const after = (await discover(handle)).items.map((i) => i.recording_mbid);
+    assert.deepEqual(before, [REC_KNOWN]);
+    assert.deepEqual(after, before);
+  } finally {
+    handle.close();
+  }
+});
+
+test('recommend ignores a play whose match is not current, even if it still carries IDs', async () => {
+  const { handle } = await library();
+  const db = handle.main;
+  try {
+    db.prepare(`UPDATE play SET match_version=NULL WHERE source_key LIKE '%c1%'`).run();
+    assert.deepEqual((await discover(handle)).items.map((i) => i.recording_mbid), [REC_KNOWN]);
+  } finally {
+    handle.close();
+  }
+});
