@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, existsSync } from 'node:fs';
+import { mkdtempSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -32,8 +32,12 @@ test('CLI init, status, refresh, unlock, online-reset', async () => {
   const logs = [];
   const out = (o) => logs.push(typeof o === 'string' ? o : JSON.stringify(o));
   const common = { out, client, skipTokenCheck: true, token: 'test-token', dbPath, configDir: cfg, tokenFile: join(cfg, 'lb-token.json') };
+  assert.equal(await runCli(['init', '--token', 'x', '--user', 'tester'], common), 1);
+  assert.match(logs.at(-1), /unknown_flag/);
+  assert.equal(existsSync(dbPath), false);
   assert.equal(await runCli(['init', '--user', 'tester'], common), 0);
   assert.equal(existsSync(dbPath), true);
+  assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(cfg, 'lb-token.json'), 'utf8'))), ['token']);
   assert.equal(await runCli(['status', '--json'], common), 1); // no snapshot yet
   assert.equal(await runCli(['refresh', '--listens-full-history'], common), 0);
   assert.equal(await runCli(['status', '--json'], common), 0);
@@ -126,7 +130,6 @@ test('createCore status on a missing DB does not throw', async () => {
 });
 
 test('docs never mention a bare unscoped registry invocation of the CLI', async () => {
-  const { readFileSync } = await import('node:fs');
   for (const f of ['README.md', 'VERIFY.md', 'skills/djdb/SKILL.md', 'package.json']) {
     const t = readFileSync(new URL('../' + f, import.meta.url), 'utf8');
     assert.equal(/npx djdb/.test(t), false, f);

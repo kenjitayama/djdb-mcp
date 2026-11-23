@@ -71,10 +71,11 @@ No command prompts. `--db <path>` overrides the main database path. `djdb refres
 
 ```json
 {
-  "token": "YOUR_LISTENBRAINZ_TOKEN",
-  "lb_account_key": "00000000-0000-0000-0000-000000000000"
+  "token": "YOUR_LISTENBRAINZ_TOKEN"
 }
 ```
+
+  There is no `--token` flag, so the token never lands in `ps` output or shell history.
 
 ### Init
 

@@ -13,7 +13,7 @@
 
 ## Init / token
 
-- `LISTENBRAINZ_TOKEN` or the token file is required. The token file is `~/.config/djdb-mcp/lb-token.json`, mode `0600`, and also stores `lb_account_key`. Docs show only placeholder values such as `YOUR_LISTENBRAINZ_TOKEN`.
+- `LISTENBRAINZ_TOKEN` or the token file is required. The token file is `~/.config/djdb-mcp/lb-token.json`, mode `0600`, and holds only `token`. There is no `--token` flag. Docs show only placeholder values such as `YOUR_LISTENBRAINZ_TOKEN`.
 - The CLI and MCP server never print the token.
 - A username mismatch during `refresh` tells you to run `djdb account-rename`.
 
