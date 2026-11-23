@@ -1,17 +1,19 @@
 #!/usr/bin/env node
 // djdb-mcp: zero-dependency MCP stdio server (newline-delimited JSON-RPC 2.0).
 // The standalone server opens the online DB read-only and never records recommendation runs.
-import { createCore, errorPayload } from '../lib/mcp-core.mjs';
+// Only builtins and the version check are imported statically: lib/ imports node:sqlite, which older Node cannot load.
 import { createInterface } from 'node:readline';
 import { readFileSync } from 'node:fs';
-import { assertNode, NODE_RANGE } from '../lib/node-range.mjs';
+import { assertNode, NODE_RANGE, NODE_HINT } from '../lib/node-range.mjs';
 
 try {
   assertNode();
 } catch (e) {
-  process.stderr.write(e.message + '\n');
+  process.stderr.write(`${e.message}\n${NODE_HINT}\n`);
   process.exit(2);
 }
+
+const { createCore, errorPayload } = await import('../lib/mcp-core.mjs');
 
 const pkg = JSON.parse(readFileSync(new URL('../plugin.json', import.meta.url), 'utf8'));
 const SUPPORTED = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];

@@ -4,14 +4,15 @@
 // or, when installed under dj-mcp:
 //   node <dj-mcp>/node_modules/@kenjitayama/djdb-mcp/bin/djdb <command>
 //   npm exec --prefix <dj-mcp> --no -- djdb <command>
-import { assertNode } from '../lib/node-range.mjs';
-import { runCli } from '../lib/cli.mjs';
+// Only the version check is imported statically: lib/ imports node:sqlite, which older Node cannot load.
+import { assertNode, NODE_HINT } from '../lib/node-range.mjs';
 
 try {
   assertNode();
 } catch (e) {
-  process.stderr.write(e.message + '\n');
+  process.stderr.write(`${e.message}\n${NODE_HINT}\n`);
   process.exit(2);
 }
 
+const { runCli } = await import('../lib/cli.mjs');
 runCli(process.argv.slice(2)).then((code) => process.exit(code));
