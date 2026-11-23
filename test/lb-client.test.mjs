@@ -166,3 +166,38 @@ test('listens: a listen without track_metadata fails lb-sync and imports nothing
     handle.close();
   }
 });
+
+const FB = [
+  { recording_mbid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', score: 1, created: 1_700_000_000 },
+  { recording_mbid: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', score: -1, created: 1_700_000_100 },
+];
+const pagedOne = (rows, total) => (u) => {
+  const offset = Number(u.searchParams.get('offset'));
+  const feedback = rows.slice(offset, offset + 1);
+  return { count: feedback.length, feedback, offset, total_count: total };
+};
+
+test('feedback: a short page is not the end; pages that stop before total_count keep the old set', async () => {
+  const { handle, client } = await library({ feedback: FB });
+  try {
+    assert.equal(count(handle.main, 'lb_feedback'), 2);
+    client.data.bad = { feedback: { body: pagedOne(FB.slice(0, 1), 2) } };
+    const r = await refresh(handle, { client, skipTokenCheck: true });
+    assert.equal(r.results.find((s) => s.name === 'lb-sync').feedback.code, 'lb_bad_response');
+    assert.equal(count(handle.main, 'lb_feedback'), 2);
+  } finally {
+    handle.close();
+  }
+});
+
+test('feedback: a server that returns fewer rows per page than asked still syncs the whole set', async () => {
+  const { handle, client } = await library();
+  try {
+    client.data.bad = { feedback: { body: pagedOne(FB, 2) } };
+    const r = await refresh(handle, { client, skipTokenCheck: true });
+    assert.equal(r.results.find((s) => s.name === 'lb-sync').partial, undefined);
+    assert.equal(count(handle.main, 'lb_feedback'), 2);
+  } finally {
+    handle.close();
+  }
+});

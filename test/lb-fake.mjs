@@ -10,7 +10,7 @@
 //   not accepted) and algorithm must be one of SIMILAR_ALGORITHMS, else 400. Measured 2026-11-23.
 // - Any endpoint listed in `fail` answers 503.
 // - `bad: { <kind>: 'html' | 'shape' | [keys] | { body } }` answers 200 with an HTML page ('html', or for the
-//   listed keys), JSON of the wrong shape ('shape'), or exactly `body`. kinds: listens, feedback, similar,
+//   listed keys), JSON of the wrong shape ('shape'), or exactly `body` (a function gets the URL). kinds: listens, feedback, similar,
 //   popularity, tops.
 // - `rateLimit: { remaining, resetIn }` adds X-RateLimit-Remaining / X-RateLimit-Reset-In to every response.
 // Data is read per request, so a test can change `client.data` between calls.
@@ -39,7 +39,7 @@ export function lbFetch(data = {}) {
     const badBody = (kind, key) => {
       const b = bad[kind];
       if (b === 'shape') return json({ unexpected: true });
-      if (b && typeof b === 'object' && !Array.isArray(b)) return json(b.body);
+      if (b && typeof b === 'object' && !Array.isArray(b)) return json(typeof b.body === 'function' ? b.body(u) : b.body);
       if (b === 'html' || (Array.isArray(b) && b.includes(key))) return new Response('<html><body>Service unavailable</body></html>', { status: 200, headers: { 'content-type': 'text/html' } });
       return null;
     };
