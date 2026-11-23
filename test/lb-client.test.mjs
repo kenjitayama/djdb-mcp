@@ -107,3 +107,62 @@ test('feedback: a failed fetch keeps the old set and marks lb-sync partial, so t
     handle.close();
   }
 });
+
+// ---- the rows inside a 2xx body are checked too (shapes measured on the live API, 2026-11-23) ----
+
+test('similar-artists, popularity and top recordings: rows without their MBID are refused and the cache stays', async () => {
+  const { handle, client } = await library();
+  try {
+    const db = handle.main;
+    const snap = () => ({
+      cache: db.prepare(`SELECT endpoint, key, body FROM fetch_cache ORDER BY endpoint, key`).all().map((r) => ({ ...r })),
+      edges: count(db, 'edge'),
+      pop: db.prepare(`SELECT artist_id, user_count, listen_count FROM artist_popularity ORDER BY artist_id`).all().map((r) => ({ ...r })),
+    });
+    const before = snap();
+    client.data.bad = { similar: { body: [{}] }, popularity: { body: [{}] }, tops: { body: [{ recording_name: 'x' }] } };
+    const r = await refresh(handle, { client, skipTokenCheck: true, nowSec: later() });
+    const stage = (n) => r.results.find((s) => s.name === n);
+    assert.ok(stage('graph').failed > 0);
+    assert.ok(stage('popularity').popularity.failed > 0);
+    assert.ok(stage('popularity').tops.failed > 0);
+    const after = snap();
+    assert.deepEqual(after.cache.map((c) => [c.endpoint, c.key, c.body]), before.cache.map((c) => [c.endpoint, c.key, c.body]));
+    assert.equal(after.edges, before.edges);
+    assert.deepEqual(after.pop, before.pop);
+  } finally {
+    handle.close();
+  }
+});
+
+for (const [what, body] of [
+  ['no total_count', { count: 0, feedback: [], offset: 0 }],
+  ['an empty page before total_count', { count: 0, feedback: [], offset: 0, total_count: 1 }],
+  ['a row without a score', { count: 1, feedback: [{}], offset: 0, total_count: 1 }],
+]) {
+  test(`feedback: a 200 with ${what} keeps the old set and marks lb-sync partial`, async () => {
+    const feedback = [{ recording_mbid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', score: 1, created: 1_700_000_000 }];
+    const { handle, client } = await library({ feedback });
+    try {
+      client.data.bad = { feedback: { body } };
+      const r = await refresh(handle, { client, skipTokenCheck: true });
+      assert.equal(r.results.find((s) => s.name === 'lb-sync').partial, true);
+      assert.equal(r.results.find((s) => s.name === 'lb-sync').feedback.code, 'lb_bad_response');
+      assert.equal(count(handle.main, 'lb_feedback'), 1);
+    } finally {
+      handle.close();
+    }
+  });
+}
+
+test('listens: a listen without track_metadata fails lb-sync and imports nothing', async () => {
+  const client = fakeClient({ bad: { listens: { body: { payload: { count: 1, listens: [{ listened_at: 1_700_000_000, recording_msid: 'x' }] } } } } });
+  const { handle } = await freshDb({ client });
+  try {
+    const r = await refresh(handle, { client, skipTokenCheck: true, listensFullHistory: true });
+    assert.equal(r.results[0].code, 'lb_bad_response');
+    assert.equal(count(handle.main, 'play'), 0);
+  } finally {
+    handle.close();
+  }
+});
