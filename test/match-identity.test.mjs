@@ -129,3 +129,17 @@ test('recommend ignores a play whose match is not current, even if it still carr
     handle.close();
   }
 });
+
+test('a listen seen again without a mapping keeps the known mapping and its match', async () => {
+  const { handle } = await library();
+  const db = handle.main;
+  try {
+    const row = () => ({ ...db.prepare(`SELECT lb_recording_mbid, track_id, match_version FROM play WHERE source_key LIKE '%c1%'`).get() });
+    const before = row();
+    assert.equal(before.lb_recording_mbid, REC_KNOWN);
+    ingestListens(db, [remapLight(undefined)]);
+    assert.deepEqual(row(), before);
+  } finally {
+    handle.close();
+  }
+});
