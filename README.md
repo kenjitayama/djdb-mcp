@@ -53,13 +53,13 @@ Commands:
 | Command | What it does |
 |---|---|
 | `djdb init` | Create the databases and bind them to one ListenBrainz account. Token from `LISTENBRAINZ_TOKEN` or the token file. |
-| `djdb refresh` | Lock, sync, match, build the graph and popularity. This is the usual way data changes. First sync: `--export <file>`. Later syncs use `/listens` deltas. `--listens-full-history` pages the whole history only when an export is unavailable. |
+| `djdb refresh` | Lock, sync, match, build the graph and popularity. This is the usual way data changes. First sync: `--export <dir>`. Later syncs use `/listens` deltas. `--listens-full-history` pages the whole history only when an export is unavailable. |
 | `djdb status` | Lock, last refresh and whether it stopped early (暫定), library counts. `--json` available. |
 | `djdb account-rename <name>` | After a ListenBrainz username change. The token must belong to `<name>`. |
 | `djdb unlock` | Delete `djdb.lock` if the process that holds it is gone. A running holder keeps it (exit 1). |
 | `djdb online-reset --yes` | Empty the online DB in place. Without `--yes` nothing changes. Restart running dj-mcp processes afterwards. |
 
-No command prompts. `--db <path>` overrides the main database path. `djdb refresh --export <file>` passes a ListenBrainz export (extracted JSON). `--listens-full-history` is the explicit opt-in to page the entire history through `GET /1/user/{user}/listens` when no export is available.
+No command prompts. `--db <path>` overrides the main database path. `djdb refresh --export <dir>` passes a ListenBrainz export: download the ZIP from ListenBrainz, extract it, and pass the folder that holds `user.json` and `listens/`. The export must belong to the initialized account. If an import stops midway, run the same command again; it finishes without duplicates. `--listens-full-history` is the explicit opt-in to page the entire history through `GET /1/user/{user}/listens` when no export is available.
 
 ### Where files live
 
@@ -80,7 +80,7 @@ No command prompts. `--db <path>` overrides the main database path. `djdb refres
 1. Create a ListenBrainz token on listenbrainz.org.
 2. `LISTENBRAINZ_TOKEN=YOUR_LISTENBRAINZ_TOKEN node <path>/bin/djdb init`
 3. Import your history into ListenBrainz first (Last.fm import, then a Spotify export for gaps). This tool only *reads* ListenBrainz. Then download a ListenBrainz listens export and extract the JSON.
-4. `node <path>/bin/djdb refresh --export /path/to/listenbrainz-export.json`
+4. `node <path>/bin/djdb refresh --export <extracted-export-dir>`
 5. Later refreshes are incremental (`/listens` with `min_ts` and a small overlap). `node <path>/bin/djdb status`
 
 ## MCP server
@@ -128,7 +128,7 @@ import {
 
 Under one lock file (`djdb.lock`, deleted only by its creator):
 
-1. Check the schema version. A djdb 0.1 database (schema v1) is refused with `schema_too_old`: move the data directory aside and rebuild with `djdb init` and `djdb refresh --export <file>`.
+1. Check the schema version. A djdb 0.1 database (schema v1) is refused with `schema_too_old`: move the data directory aside and rebuild with `djdb init` and `djdb refresh --export <dir>`.
 2. `lb-sync` — first run imports a ListenBrainz export (`--export`); later runs fetch only new listens from `GET /1/user/{user}/listens` with `min_ts` set a small overlap before the last fetched `listened_at`. `UNIQUE(source_key)` absorbs the overlap. Paging the whole history through `/listens` happens only with `--listens-full-history`. Love/hate feedback is also pulled here.
 3. `match` — recordings in this order: MBID → ISRC → normalized name. Then a 60-second cross-via dedup safety net. `lb_feedback.track_id` is re-attached via MBID at the end of this stage.
 4. `graph` — ListenBrainz similar-artists, stored as `lb:similar-artists:<algorithm>`.

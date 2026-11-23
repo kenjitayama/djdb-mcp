@@ -18,7 +18,7 @@ or `npm exec --prefix <dj-mcp> --no -- djdb <command>`.
 It prints JSON with `--json`; on failure it exits 1 and prints `{"error":{code,message,hint}}`.
 
 ## Before anything
-- `no database`: the user must run `djdb init` (ListenBrainz token via `LISTENBRAINZ_TOKEN`) then `djdb refresh --export <listenbrainz-export.json>`. Later refreshes are incremental.
+- `no database`: the user must run `djdb init` (ListenBrainz token via `LISTENBRAINZ_TOKEN`) then `djdb refresh --export <dir>` with the extracted ListenBrainz export folder (`user.json` and `listens/`). Later refreshes are incremental.
 - `never refreshed`: run `djdb refresh`. `schema_too_old`: the database is from djdb 0.1; follow the hint to rebuild.
 - 暫定 in `status`: the last refresh stopped early; results use the earlier stages. Run `djdb refresh` again later.
 - `stale lock`: show the pid and time from `djdb status`. `djdb unlock` removes it only if that pid is gone.

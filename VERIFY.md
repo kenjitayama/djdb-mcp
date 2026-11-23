@@ -18,7 +18,7 @@
 - A username mismatch during `refresh` tells you to run `djdb account-rename`.
 
 ## Listen sync
-- First sync requires `--export <file>` (or `LISTENBRAINZ_EXPORT`). Without an export it stops, unless `--listens-full-history` is set explicitly.
+- First sync requires `--export <dir>` (or `LISTENBRAINZ_EXPORT`), the extracted export with `user.json` and `listens/<year>/<month>.jsonl`. Without an export it stops, unless `--listens-full-history` is set explicitly. Until an import completes, every sync without `--export` stops with `lb_export_required`, even if some plays are in. A ZIP or another account's export is refused.
 - Later syncs call `/listens` with `min_ts = last_listened_at - 3600` (overlap). `UNIQUE(source_key)` absorbs duplicates. They do not page the whole history.
 - Live ListenBrainz verification is still pending; tests use fixtures and mocks only.
 

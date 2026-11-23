@@ -39,7 +39,7 @@ test('#6b a mapping that arrives after the first match re-matches the play', { t
   assert.deepEqual({ ...r }, { match_method: 'mbid', mbid: REC_KNOWN });
 });
 
-test('#5 an export import that stopped midway is not silently turned into delta syncs', { todo: 'J14' }, async () => {
+test('#5 an export import that stopped midway is not silently turned into delta syncs', async () => {
   const { handle } = await H.freshDb();
   const all = Array.from({ length: 10 }, (_, i) => H.listen({ at: 1_000_000 + i * 600, msid: `e${i}`, artist: 'A', title: `T${i}` }));
   ingestListens(handle.main, all.slice(5));

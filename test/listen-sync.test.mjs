@@ -10,8 +10,6 @@ import { nomssidFrom, listenToPlayFields } from '../lib/listenbrainz.mjs';
 import { normalizeArtist, normalizeTitle } from '../lib/normalize.mjs';
 import {
   syncListens,
-  parseListenBrainzExport,
-  loadListenBrainzExport,
   DELTA_OVERLAP_SEC,
   META_LISTENS_MAX_TS,
   lastSyncedListenTs,
@@ -20,7 +18,7 @@ import { getMeta } from '../lib/db.mjs';
 import { DjdbError } from '../lib/errors.mjs';
 import { createHash } from 'node:crypto';
 
-const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'listens-export.json');
+const FIXTURE = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'lb-export');
 const GOLD_BEATLES = 'nomssid:749b9ace4b597451539ff79af005cf9f';
 const GOLD_EMPTY = 'nomssid:3a6d49d013713694c351e26fc2282c5c';
 
@@ -63,19 +61,6 @@ test('nomssidFrom is stable and follows the documented hash inputs', () => {
   assert.equal(fields.source_key, `lb:1700000000|${GOLD_BEATLES}`);
 });
 
-test('parseListenBrainzExport accepts array, payload.listens, listens, payload[], and JSONL', () => {
-  const one = listen({ at: 10, msid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', artist: 'A', title: 'T' });
-  assert.equal(parseListenBrainzExport([one]).length, 1);
-  assert.equal(parseListenBrainzExport({ listens: [one] }).length, 1);
-  assert.equal(parseListenBrainzExport({ payload: { listens: [one] } }).length, 1);
-  assert.equal(parseListenBrainzExport({ payload: [one] }).length, 1);
-  assert.equal(parseListenBrainzExport(JSON.stringify({ listens: [one] })).length, 1);
-  assert.equal(parseListenBrainzExport(JSON.stringify(one) + '\n' + JSON.stringify(one) + '\n').length, 2);
-  const loaded = loadListenBrainzExport(FIXTURE);
-  assert.equal(loaded.length, 3);
-  assert.throws(() => parseListenBrainzExport({ no: 'listens' }), (e) => e instanceof DjdbError && e.code === 'lb_export_invalid');
-});
-
 test('first listen sync requires an export or --listens-full-history', async () => {
   const client = fakeClient({ listens: [listen({ at: 1_700_000_000, msid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', artist: 'A', title: 'T' })] });
   const { handle } = await freshDb({ client });
@@ -98,7 +83,7 @@ test('first listen sync imports the export and does not page /listens', async ()
   });
   const { handle } = await freshDb({ client });
   try {
-    const r = await syncListens(handle.main, client, 'tester', { exportFile: FIXTURE });
+    const r = await syncListens(handle.main, client, 'tester', { exportDir: FIXTURE });
     assert.equal(r.source, 'export');
     assert.equal(r.inserted, 3);
     assert.equal(r.fetched, 3);
@@ -143,7 +128,7 @@ test('subsequent sync uses min_ts with overlap and UNIQUE(source_key) absorbs du
   const client = fakeClient({ listens: [tooOld, overlapListen, newListen] });
   const { handle } = await freshDb({ client });
   try {
-    await syncListens(handle.main, client, 'tester', { exportFile: FIXTURE });
+    await syncListens(handle.main, client, 'tester', { exportDir: FIXTURE });
     assert.equal(listenCalls(client).length, 0);
     const before = handle.main.prepare('SELECT count(*) AS n FROM play').get().n;
     assert.equal(before, 3);
@@ -177,25 +162,6 @@ test('--listens-full-history pages /listens with no min_ts when an export is una
     assert.equal(listenCalls(client).length, 1);
     assert.equal(listenCalls(client)[0].min_ts, undefined);
     assert.equal(getMeta(handle.main, META_LISTENS_MAX_TS), '1200000000');
-  } finally {
-    handle.close();
-  }
-});
-
-test('an already-filled DB without meta uses max(played_at) and does not demand an export', async () => {
-  const client = fakeClient({
-    listens: [listen({ at: 1_700_000_300, msid: '55555555-5555-5555-5555-555555555555', artist: 'Delta', title: 'D' })],
-  });
-  const { handle } = await freshDb({ client });
-  try {
-    await syncListens(handle.main, client, 'tester', { exportFile: FIXTURE });
-    handle.main.prepare('DELETE FROM meta WHERE key=?').run(META_LISTENS_MAX_TS);
-    assert.equal(getMeta(handle.main, META_LISTENS_MAX_TS) ?? null, null);
-    assert.equal(lastSyncedListenTs(handle.main), 1_700_000_200);
-    const r = await syncListens(handle.main, client, 'tester');
-    assert.equal(r.source, 'listens-delta');
-    assert.equal(r.min_ts, 1_700_000_200 - DELTA_OVERLAP_SEC);
-    assert.equal(r.inserted, 1);
   } finally {
     handle.close();
   }
