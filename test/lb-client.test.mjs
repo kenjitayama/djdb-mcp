@@ -85,3 +85,25 @@ test('a cache row whose body is not JSON reads as missing instead of throwing', 
     handle.close();
   }
 });
+
+test('feedback: a failed fetch keeps the old set and marks lb-sync partial, so the refresh is provisional', async () => {
+  const { status } = await import('../lib/status.mjs');
+  const feedback = [{ recording_mbid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', score: 1, created: 1_700_000_000 }];
+  const { handle, client } = await library({ feedback });
+  try {
+    client.data.fail = { feedback: true };
+    const r = await refresh(handle, { client, skipTokenCheck: true });
+    assert.equal(r.ok, true);
+    const sync = r.results.find((s) => s.name === 'lb-sync');
+    assert.equal(sync.partial, true);
+    assert.equal(sync.failed, 1);
+    assert.equal(sync.feedback.ok, false);
+    assert.equal(count(handle.main, 'lb_feedback'), 1);
+    assert.match(getMeta(handle.main, 'refresh_note'), /stage lb-sync partial: 1 LB requests failed/);
+    const st = status(handle);
+    assert.equal(st.ok, true);
+    assert.equal(st.provisional, true);
+  } finally {
+    handle.close();
+  }
+});
