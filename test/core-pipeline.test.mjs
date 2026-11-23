@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { freshDb, mockClient, listen } from './helpers.mjs';
+import { freshDb, listen } from './helpers.mjs';
+import { fakeClient } from './lb-fake.mjs';
 import { refresh } from '../lib/refresh.mjs';
 import { recommend } from '../lib/recommend.mjs';
 import { status } from '../lib/status.mjs';
@@ -32,7 +33,7 @@ function baseListens() {
 }
 
 function clientFor(listens) {
-  return mockClient({
+  return fakeClient({
     user: 'tester',
     listens,
     feedback: [
@@ -83,8 +84,8 @@ test('init + refresh with fixture listens, then recommend returns items', async 
       if (/alpha/i.test(a.name)) handle.main.prepare(`UPDATE artist SET mbid=? WHERE id=?`).run(A_MBID, a.id);
       if (/beta/i.test(a.name)) handle.main.prepare(`UPDATE artist SET mbid=? WHERE id=?`).run(B_MBID, a.id);
     }
-    client.similar[A_MBID] = [{ artist_mbid: B_MBID, score: 0.8 }];
-    client.similar[B_MBID] = [{ artist_mbid: A_MBID, score: 0.8 }];
+    client.data.similar[A_MBID] = [{ artist_mbid: B_MBID, score: 0.8 }];
+    client.data.similar[B_MBID] = [{ artist_mbid: A_MBID, score: 0.8 }];
     const r2 = await refresh(handle, { client, skipTokenCheck: true, listensFullHistory: true });
     assert.equal(r2.ok, true);
     const edges = handle.main.prepare(`SELECT count(*) AS n FROM edge`).get().n;
@@ -173,10 +174,10 @@ test('feedback pull is all-or-nothing; score 0 is not stored', async () => {
 });
 
 test('a refresh that fails at lb-sync is recorded, and status marks it 暫定', async () => {
-  const { handle } = await freshDb({ client: mockClient({ fail: 'listens' }) });
+  const { handle } = await freshDb({ client: fakeClient({ fail: { listens: true } }) });
   try {
     assert.match(status(handle).reason, /never refreshed/);
-    const r = await refresh(handle, { client: mockClient({ fail: 'listens' }), skipTokenCheck: true, listensFullHistory: true, nowSec: 5000 });
+    const r = await refresh(handle, { client: fakeClient({ fail: { listens: true } }), skipTokenCheck: true, listensFullHistory: true, nowSec: 5000 });
     assert.equal(r.ok, false);
     assert.equal(r.failed, 'lb-sync');
     const st = status(handle);
@@ -233,7 +234,7 @@ test('CJK artists merge on normalized name and recommend keeps one track per art
     listen({ at: t0 + 20, msid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa03', artist: '河井英里', title: 'ARIA', mbid: T3, mapped: T3, via: 'lastfm' }),
     listen({ at: t0 + 86400 * 2, msid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaa04', artist: '牧野由依', title: 'ウンディーネ', mbid: T1, mapped: T1, via: 'lastfm' }),
   ];
-  const client = mockClient({ user: 'tester', listens, tops: {}, similar: {} });
+  const client = fakeClient({ user: 'tester', listens, tops: {}, similar: {} });
   const { handle } = await freshDb({ client });
   try {
     const r = await refresh(handle, { client, skipTokenCheck: true, listensFullHistory: true });

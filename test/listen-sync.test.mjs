@@ -2,7 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { freshDb, mockClient, listen } from './helpers.mjs';
+import { freshDb, listen } from './helpers.mjs';
+import { fakeClient } from './lb-fake.mjs';
+
+const listenCalls = (client) => client.fetch.calls.filter((c) => c.path.endsWith('/listens')).map((c) => c.params);
 import { nomssidFrom, listenToPlayFields } from '../lib/listenbrainz.mjs';
 import { normalizeArtist, normalizeTitle } from '../lib/normalize.mjs';
 import {
@@ -74,7 +77,7 @@ test('parseListenBrainzExport accepts array, payload.listens, listens, payload[]
 });
 
 test('first listen sync requires an export or --listens-full-history', async () => {
-  const client = mockClient({ listens: [listen({ at: 1_700_000_000, msid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', artist: 'A', title: 'T' })] });
+  const client = fakeClient({ listens: [listen({ at: 1_700_000_000, msid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', artist: 'A', title: 'T' })] });
   const { handle } = await freshDb({ client });
   try {
     assert.equal(lastSyncedListenTs(handle.main), null);
@@ -82,7 +85,7 @@ test('first listen sync requires an export or --listens-full-history', async () 
       () => syncListens(handle.main, client, 'tester'),
       (e) => e instanceof DjdbError && e.code === 'lb_export_required',
     );
-    assert.equal(client.iterCalls.length, 0);
+    assert.equal(listenCalls(client).length, 0);
     assert.equal(handle.main.prepare('SELECT count(*) AS n FROM play').get().n, 0);
   } finally {
     handle.close();
@@ -90,7 +93,7 @@ test('first listen sync requires an export or --listens-full-history', async () 
 });
 
 test('first listen sync imports the export and does not page /listens', async () => {
-  const client = mockClient({
+  const client = fakeClient({
     listens: [listen({ at: 1_800_000_000, msid: 'cccccccccccccccccccccccccccccccccccc', artist: 'Should Not Fetch', title: 'X' })],
   });
   const { handle } = await freshDb({ client });
@@ -99,7 +102,7 @@ test('first listen sync imports the export and does not page /listens', async ()
     assert.equal(r.source, 'export');
     assert.equal(r.inserted, 3);
     assert.equal(r.fetched, 3);
-    assert.equal(client.iterCalls.length, 0);
+    assert.equal(listenCalls(client).length, 0);
     assert.equal(handle.main.prepare('SELECT count(*) AS n FROM play').get().n, 3);
     assert.equal(getMeta(handle.main, META_LISTENS_MAX_TS), '1700000200');
     assert.equal(lastSyncedListenTs(handle.main), 1_700_000_200);
@@ -137,20 +140,20 @@ test('subsequent sync uses min_ts with overlap and UNIQUE(source_key) absorbs du
     artist: 'Too Old',
     title: 'Skipped',
   });
-  const client = mockClient({ listens: [tooOld, overlapListen, newListen] });
+  const client = fakeClient({ listens: [tooOld, overlapListen, newListen] });
   const { handle } = await freshDb({ client });
   try {
     await syncListens(handle.main, client, 'tester', { exportFile: FIXTURE });
-    assert.equal(client.iterCalls.length, 0);
+    assert.equal(listenCalls(client).length, 0);
     const before = handle.main.prepare('SELECT count(*) AS n FROM play').get().n;
     assert.equal(before, 3);
 
     const r = await syncListens(handle.main, client, 'tester');
     assert.equal(r.source, 'listens-delta');
     assert.equal(r.min_ts, last - DELTA_OVERLAP_SEC);
-    assert.equal(client.iterCalls.length, 1);
-    assert.equal(client.lastIterOpts.minTs, last - DELTA_OVERLAP_SEC);
-    assert.equal(client.lastIterOpts.maxTs, undefined);
+    assert.equal(listenCalls(client).length, 1);
+    assert.equal(listenCalls(client)[0].min_ts, String(last - DELTA_OVERLAP_SEC));
+    assert.equal(listenCalls(client)[0].max_ts, undefined);
     // overlap dup absorbed; too-old filtered; only the new listen is inserted
     assert.equal(r.inserted, 1);
     assert.equal(handle.main.prepare('SELECT count(*) AS n FROM play').get().n, 4);
@@ -165,14 +168,14 @@ test('--listens-full-history pages /listens with no min_ts when an export is una
     listen({ at: 1_100_000_000, msid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', artist: 'A', title: 'One' }),
     listen({ at: 1_200_000_000, msid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2', artist: 'A', title: 'Two' }),
   ];
-  const client = mockClient({ listens });
+  const client = fakeClient({ listens });
   const { handle } = await freshDb({ client });
   try {
     const r = await syncListens(handle.main, client, 'tester', { listensFullHistory: true });
     assert.equal(r.source, 'listens-full');
     assert.equal(r.inserted, 2);
-    assert.equal(client.iterCalls.length, 1);
-    assert.equal(client.lastIterOpts.minTs, undefined);
+    assert.equal(listenCalls(client).length, 1);
+    assert.equal(listenCalls(client)[0].min_ts, undefined);
     assert.equal(getMeta(handle.main, META_LISTENS_MAX_TS), '1200000000');
   } finally {
     handle.close();
@@ -180,7 +183,7 @@ test('--listens-full-history pages /listens with no min_ts when an export is una
 });
 
 test('an already-filled DB without meta uses max(played_at) and does not demand an export', async () => {
-  const client = mockClient({
+  const client = fakeClient({
     listens: [listen({ at: 1_700_000_300, msid: '55555555-5555-5555-5555-555555555555', artist: 'Delta', title: 'D' })],
   });
   const { handle } = await freshDb({ client });

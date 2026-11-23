@@ -48,7 +48,7 @@ test('#5 an export import that stopped midway is not silently turned into delta 
   assert.equal(client.fetch.calls.length, 0);
 });
 
-test('LB-paging a delta sync with 2,500 new listens ingests all of them, paging forward with min_ts', { todo: 'J12' }, async () => {
+test('LB-paging a delta sync with 2,500 new listens ingests all of them, paging forward with min_ts', async () => {
   const { handle } = await H.freshDb();
   ingestListens(handle.main, [H.listen({ at: 10_000, msid: 'seed', artist: 'A', title: 'T' })]);
   setMeta(handle.main, 'lb_listens_synced_max_ts', '10000');

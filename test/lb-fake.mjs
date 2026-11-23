@@ -7,16 +7,20 @@
 //   the newest `count` rows before max_ts. count is capped at 1000.
 // - get-feedback returns { feedback, count: <rows in this page>, total_count, offset }.
 // - Any endpoint listed in `fail` answers 503.
+// - `rateLimit: { remaining, resetIn }` adds X-RateLimit-Remaining / X-RateLimit-Reset-In to every response.
+// Data is read per request, so a test can change `client.data` between calls.
 import { createListenBrainzClient } from '../lib/listenbrainz.mjs';
 
 const MAX = 1000;
 
 export function lbFetch(data = {}) {
-  const { user = 'tester', listens = [], feedback = [], similar = {}, popularity = {}, tops = {}, fail = {} } = data;
   const calls = [];
-  const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-  const failed = (kind, key) => fail[kind] === true || (Array.isArray(fail[kind]) && fail[kind].includes(key));
   const f = async (url, init = {}) => {
+    const { user = 'tester', listens = [], feedback = [], similar = {}, popularity = {}, tops = {}, fail = {}, rateLimit } = data;
+    const headers = { 'content-type': 'application/json' };
+    if (rateLimit) Object.assign(headers, { 'X-RateLimit-Remaining': String(rateLimit.remaining), 'X-RateLimit-Reset-In': String(rateLimit.resetIn) });
+    const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers });
+    const failed = (kind, key) => fail[kind] === true || (Array.isArray(fail[kind]) && fail[kind].includes(key));
     const u = new URL(String(url));
     const method = init.method || 'GET';
     calls.push({ method, path: u.pathname, params: Object.fromEntries(u.searchParams), body: init.body ?? null });
@@ -69,11 +73,12 @@ export function lbFetch(data = {}) {
   return f;
 }
 
-/** The real client over the fake server. `client.fetch.calls` lists every request. */
+/** The real client over the fake server. `client.fetch.calls` lists every request; `client.data` is the server's data. */
 export function fakeClient(data = {}, opts = {}) {
   const fetch = lbFetch(data);
   const client = createListenBrainzClient({ fetch, token: 'test-token', sleep: async () => {}, ...opts });
   client.fetch = fetch;
+  client.data = data;
   return client;
 }
 

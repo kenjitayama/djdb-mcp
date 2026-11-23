@@ -7,7 +7,8 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCli } from '../lib/cli.mjs';
 import { openReader } from '../lib/open.mjs';
-import { mockClient, freshDb, listen } from './helpers.mjs';
+import { freshDb, listen } from './helpers.mjs';
+import { fakeClient } from './lb-fake.mjs';
 import { createCore } from '../lib/mcp-core.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url)) + '/..';
@@ -25,7 +26,7 @@ test('CLI help does not mention a bare unscoped bin invocation', async () => {
 test('CLI init, status, refresh, unlock, online-reset', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'djdb-cli-'));
   const dbPath = join(dir, 'djdb.sqlite');
-  const client = mockClient({
+  const client = fakeClient({
     user: 'tester',
     listens: [listen({ at: 2000, msid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', artist: 'A', title: 'T', via: 'lastfm' })],
   });
@@ -65,7 +66,7 @@ test('CLI init, status, refresh, unlock, online-reset', async () => {
 
   assert.equal(await runCli(['account-rename', 'someone-else'], common), 1);
   assert.match(logs.at(-1), /lb_user_mismatch/);
-  assert.equal(await runCli(['account-rename', 'renamed'], { ...common, client: mockClient({ user: 'renamed' }) }), 0);
+  assert.equal(await runCli(['account-rename', 'renamed'], { ...common, client: fakeClient({ user: 'renamed' }) }), 0);
   logs.length = 0;
   await runCli(['status', '--json'], common);
   assert.equal(JSON.parse(logs.at(-1)).lb_user, 'renamed');
