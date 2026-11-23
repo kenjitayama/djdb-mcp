@@ -4,7 +4,7 @@ PRAGMA foreign_keys = ON;
 -- Readers open it read-only and read inside one transaction.
 -- meta keys: lb_account_key (new UUID on init, never changes; the online DB binds to it), lb_user,
 -- lb_feedback_synced_at, lb_listens_synced_max_ts, refreshed_at, refresh_note
--- artist / track rows are never deleted, only merged; AUTOINCREMENT so an id is never reused.
+-- artist / track rows are never deleted or merged; AUTOINCREMENT so an id is never reused.
 CREATE TABLE meta (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -13,9 +13,7 @@ CREATE TABLE meta (
 CREATE TABLE artist (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   name        TEXT NOT NULL,
-  mbid        TEXT UNIQUE,
-  merged_into INTEGER REFERENCES artist(id),
-  CHECK (merged_into IS NULL OR merged_into <> id)
+  mbid        TEXT UNIQUE
 ) STRICT;
 CREATE TABLE artist_alias (
   alias_norm   TEXT NOT NULL,
@@ -35,9 +33,7 @@ CREATE TABLE track (
   version_kind       TEXT,
   first_release_date TEXT,
   release_group_type TEXT,
-  duration_ms        INTEGER CHECK (duration_ms IS NULL OR duration_ms >= 0),
-  merged_into        INTEGER REFERENCES track(id),
-  CHECK (merged_into IS NULL OR merged_into <> id)
+  duration_ms        INTEGER CHECK (duration_ms IS NULL OR duration_ms >= 0)
 ) STRICT;
 CREATE TABLE track_artist (
   track_id    INTEGER NOT NULL REFERENCES track(id),

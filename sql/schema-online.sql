@@ -1,6 +1,6 @@
 -- Online DB (djdb-online.sqlite, next to the main DB). Written only by the online path inside dj-mcp:
 -- recommend(), recordEvent(), recordExternalIds(). Never written by refresh.
--- track_id / artist_id are main-DB ids; readers follow main-DB merged_into before using them.
+-- track_id / artist_id are main-DB ids.
 PRAGMA foreign_keys = ON;
 
 -- main_db_key = the main DB's lb_account_key, set when a fresh online DB is first opened for writing.

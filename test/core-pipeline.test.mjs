@@ -9,7 +9,6 @@ import { matchPlays, dedupPlays, setCanonical } from '../lib/match.mjs';
 import { recordExternalIds, recordEvent, explain, onlineReset } from '../lib/online.mjs';
 import { API_VERSION, open, LIB_USER_VERSION } from '../lib/index.mjs';
 import { normalizeArtist, normalizeTitle, NORM_VERSION } from '../lib/normalize.mjs';
-import { canon } from '../lib/canon.mjs';
 
 const A_MBID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 const B_MBID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
@@ -79,7 +78,7 @@ test('init + refresh with fixture listens, then recommend returns items', async 
     const dups = handle.main.prepare(`SELECT count(*) AS n FROM play WHERE canonical_play_id IS NOT NULL`).get().n;
     assert.ok(dups >= 1, 'expected at least one deduped play');
     // attach MBIDs to artists for graph
-    const artists = handle.main.prepare(`SELECT id, name FROM artist WHERE merged_into IS NULL`).all();
+    const artists = handle.main.prepare(`SELECT id, name FROM artist`).all();
     for (const a of artists) {
       if (/alpha/i.test(a.name)) handle.main.prepare(`UPDATE artist SET mbid=? WHERE id=?`).run(A_MBID, a.id);
       if (/beta/i.test(a.name)) handle.main.prepare(`UPDATE artist SET mbid=? WHERE id=?`).run(B_MBID, a.id);
@@ -239,7 +238,7 @@ test('CJK artists merge on normalized name and recommend keeps one track per art
   try {
     const r = await refresh(handle, { client, skipTokenCheck: true, listensFullHistory: true });
     assert.equal(r.ok, true);
-    const nArtists = handle.main.prepare(`SELECT count(*) AS n FROM artist WHERE merged_into IS NULL`).get().n;
+    const nArtists = handle.main.prepare(`SELECT count(*) AS n FROM artist`).get().n;
     assert.equal(nArtists, 2);
     const rec = await recommend(handle, { mode: 'rediscover', n: 10, record: false, client });
     const credits = rec.items.map((i) => i.artist_credit);
