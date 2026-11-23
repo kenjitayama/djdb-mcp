@@ -160,7 +160,7 @@ test('#9 the MCP server reads without writing: a missing online DB is not create
   assert.equal(existsSync(paths.onlinePath), false);
 });
 
-test('#7 dedup refuses to merge plays whose MBIDs differ or whose ISRCs differ', { todo: 'J16' }, async () => {
+test('#7 dedup refuses to merge plays whose MBIDs differ or whose ISRCs differ', async () => {
   const merged = async (a, b) => {
     const { handle } = await H.freshDb();
     ingestListens(handle.main, [
@@ -174,4 +174,7 @@ test('#7 dedup refuses to merge plays whose MBIDs differ or whose ISRCs differ',
   assert.equal(await merged({ mapped: ARTIST_M }, { mapped: '22222222-2222-4222-8222-222222222222' }), false, 'MBID conflict');
   assert.equal(await merged({ isrc: 'USAAA0000001' }, { isrc: 'USBBB0000002' }), false, 'ISRC conflict');
   assert.equal(await merged({}, {}), true, 'same names, no IDs');
+  assert.equal(await merged({ mapped: ARTIST_M }, { mapped: ARTIST_M }), true, 'same MBID');
+  assert.equal(await merged({ mapped: ARTIST_M, isrc: 'USAAA0000001' }, { mapped: ARTIST_M, isrc: 'USBBB0000002' }), false, 'same MBID, ISRCs contradict');
+  assert.equal(await merged({ isrc: 'USAAA0000001' }, {}), true, 'an ID on one side only falls back to names');
 });
