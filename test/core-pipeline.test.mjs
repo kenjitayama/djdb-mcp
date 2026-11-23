@@ -8,7 +8,8 @@ import { status } from '../lib/status.mjs';
 import { ingestListens, pullFeedback } from '../lib/sync.mjs';
 import { matchPlays, dedupPlays, setCanonical } from '../lib/match.mjs';
 import { recordExternalIds, recordEvent, explain, onlineReset } from '../lib/online.mjs';
-import { API_VERSION, open, LIB_USER_VERSION } from '../lib/index.mjs';
+import * as api from '../lib/index.mjs';
+import { LIB_USER_VERSION } from '../lib/db.mjs';
 import { normalizeArtist, normalizeTitle, NORM_VERSION } from '../lib/normalize.mjs';
 
 const A_MBID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -59,8 +60,8 @@ function clientFor(listens) {
   });
 }
 
-test('API_VERSION is 1, NORM_VERSION is 1, schema is v2', () => {
-  assert.equal(API_VERSION, 1);
+test('API_VERSION is 2, NORM_VERSION is 1, schema is v2', () => {
+  assert.equal(api.API_VERSION, 2);
   assert.equal(NORM_VERSION, 1);
   assert.deepEqual(LIB_USER_VERSION, { min: 2, max: 2 });
   assert.equal(normalizeArtist('The Beatles'), 'beatles');
@@ -208,7 +209,7 @@ test('recordExternalIds unknown_run is non-fatal; online-reset does not reuse ru
     assert.match(msg.message, /restart/);
     const again = await recommend(handle, { mode: 'discover', n: 2, record: true, client });
     assert.ok(again.run_id > staleId, `expected ${again.run_id} > ${staleId}`);
-    const bad = recordExternalIds(handle.online, handle.main, staleId, [{ rank: 1, provider: 'spotify', status: 'ok', extId: 'zzz', playUri: 'spotify:track:zzz' }]);
+    const bad = recordExternalIds(handle.online, staleId, [{ rank: 1, provider: 'spotify', status: 'ok', extId: 'zzz', playUri: 'spotify:track:zzz' }]);
     assert.equal(bad.error, 'unknown_run');
   } finally {
     handle.close();

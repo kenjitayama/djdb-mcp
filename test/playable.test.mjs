@@ -17,14 +17,14 @@ test('a reported Spotify ID is stored for the run and served from the cache next
     const known = first.items.find((i) => i.recording_mbid === REC_UNKNOWN);
     assert.ok(known, JSON.stringify(first.items));
     assert.equal(known.playable, null);
-    const r = recordExternalIds(handle.online, handle.main, first.run_id, [
+    const r = recordExternalIds(handle.online, first.run_id, [
       { rank: known.rank, provider: 'spotify', status: 'ok', extId: 'sp1', playUri: 'spotify:track:sp1', method: 'isrc' },
     ], { market: 'JP', nowSec: 1234 });
     assert.equal(r.ok, true);
     assert.deepEqual(playableOf(handle.online, first.run_id), [
       { rank: known.rank, provider: 'spotify', ext_id: 'sp1', play_uri: 'spotify:track:sp1', market: 'JP', resolved_by: 'client', resolved_at: 1234 },
     ]);
-    const again = recordExternalIds(handle.online, handle.main, first.run_id, [
+    const again = recordExternalIds(handle.online, first.run_id, [
       { rank: known.rank, provider: 'spotify', status: 'ok', extId: 'sp2', playUri: 'spotify:track:sp2' },
     ], { market: 'JP', nowSec: 1300 });
     assert.equal(again.ok, true);
@@ -64,13 +64,13 @@ test('#12 an ID resolved for one market is not served for another; each market g
   try {
     const jp = await recommend(handle, { ...opts, market: 'JP' });
     const item = jp.items.find((i) => i.recording_mbid === REC_UNKNOWN);
-    recordExternalIds(handle.online, handle.main, jp.run_id, [
+    recordExternalIds(handle.online, jp.run_id, [
       { rank: item.rank, provider: 'spotify', status: 'ok', extId: 'jp1', playUri: 'spotify:track:jp1', method: 'isrc' },
     ], { market: 'JP', nowSec: 1234 });
     const us = await recommend(handle, { ...opts, market: 'US', cutoffAt: 2_000_000_100 });
     const usItem = us.items.find((i) => i.recording_mbid === REC_UNKNOWN);
     assert.equal(usItem.playable, null);
-    recordExternalIds(handle.online, handle.main, us.run_id, [
+    recordExternalIds(handle.online, us.run_id, [
       { rank: usItem.rank, provider: 'spotify', status: 'ok', extId: 'jp1', playUri: 'spotify:track:jp1', method: 'isrc' },
     ], { market: 'US', nowSec: 1300 });
     const rows = handle.online.prepare(`SELECT market, ext_id FROM track_external_id ORDER BY market`).all().map((r) => ({ ...r }));

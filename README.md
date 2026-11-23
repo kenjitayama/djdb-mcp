@@ -112,7 +112,9 @@ Semver (0.x: minor versions may break) covers these functions and their return s
 
 ```js
 import {
-  API_VERSION,          // 1
+  API_VERSION,          // 2
+  NODE_RANGE,
+  nodeSupported,
   resolveDbPath,
   openReader,
   status,
@@ -123,8 +125,10 @@ import {
 } from '@kenjitayama/djdb-mcp';
 ```
 
+Nothing else in `lib/` is public.
+
 - `recommend(handle, { mode, n, provider, market, seeds, record, cutoffAt })`. `mode` is `discover` or `rediscover` (see below). `record: false` is a dry run that writes nothing (the standalone MCP server uses it). A recorded run and its items are written in one transaction. Seeds are `{ mbid }` or `{ name }`. A seed with a name and a Spotify URI resolves by the name; a seed with only a URI comes back in `unresolved` with `uri_not_resolved`.
-- `recordExternalIds(online, main, runId, items, { market })` stores the playback IDs dj-mcp found for a run's items. The ID cache is per market: an ID found for `JP` is not served for `US`.
+- `recordExternalIds(online, runId, items, { market })` stores the playback IDs dj-mcp found for a run's items. The ID cache is per market: an ID found for `JP` is not served for `US`.
 - `recordEvent(online, runId, rank, kind)`. If `runId` is missing or unknown, nothing is written and `{ error: 'unknown_run' }` is returned (non-fatal for dj-mcp).
 - `explain(online, runId)` returns the run's parameters and items.
 
