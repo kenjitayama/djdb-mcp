@@ -9,6 +9,8 @@
 // - similar-artists (labs) validates like the real API: artist_mbids is required (artist_mbid is
 //   not accepted) and algorithm must be one of SIMILAR_ALGORITHMS, else 400. Measured 2026-11-23.
 // - Any endpoint listed in `fail` answers 503.
+// - `bad: { <kind>: 'html' | 'shape' | [keys] }` answers 200 with an HTML page ('html', or for the listed keys)
+//   or with JSON of the wrong shape ('shape'). kinds: listens, feedback, similar, popularity, tops.
 // - `rateLimit: { remaining, resetIn }` adds X-RateLimit-Remaining / X-RateLimit-Reset-In to every response.
 // Data is read per request, so a test can change `client.data` between calls.
 import { createListenBrainzClient } from '../lib/listenbrainz.mjs';
@@ -28,11 +30,17 @@ export const SIMILAR_ALGORITHMS = [
 export function lbFetch(data = {}) {
   const calls = [];
   const f = async (url, init = {}) => {
-    const { user = 'tester', listens = [], feedback = [], similar = {}, popularity = {}, tops = {}, fail = {}, rateLimit } = data;
+    const { user = 'tester', listens = [], feedback = [], similar = {}, popularity = {}, tops = {}, fail = {}, bad = {}, rateLimit } = data;
     const headers = { 'content-type': 'application/json' };
     if (rateLimit) Object.assign(headers, { 'X-RateLimit-Remaining': String(rateLimit.remaining), 'X-RateLimit-Reset-In': String(rateLimit.resetIn) });
     const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers });
     const failed = (kind, key) => fail[kind] === true || (Array.isArray(fail[kind]) && fail[kind].includes(key));
+    const badBody = (kind, key) => {
+      const b = bad[kind];
+      if (b === 'shape') return json({ unexpected: true });
+      if (b === 'html' || (Array.isArray(b) && b.includes(key))) return new Response('<html><body>Service unavailable</body></html>', { status: 200, headers: { 'content-type': 'text/html' } });
+      return null;
+    };
     const u = new URL(String(url));
     const method = init.method || 'GET';
     calls.push({ method, path: u.pathname, params: Object.fromEntries(u.searchParams), body: init.body ?? null });
@@ -41,6 +49,7 @@ export function lbFetch(data = {}) {
     let m = p.match(/^\/1\/user\/([^/]+)\/listens$/);
     if (m) {
       if (failed('listens')) return json({ error: 'paused' }, 503);
+      const b = badBody('listens'); if (b) return b;
       const count = Math.min(Number(u.searchParams.get('count') || 25), MAX);
       const min = u.searchParams.get('min_ts');
       const max = u.searchParams.get('max_ts');
@@ -54,6 +63,7 @@ export function lbFetch(data = {}) {
     m = p.match(/^\/1\/feedback\/user\/[^/]+\/get-feedback$/);
     if (m) {
       if (failed('feedback')) return json({ error: 'paused' }, 503);
+      const b = badBody('feedback'); if (b) return b;
       const count = Math.min(Number(u.searchParams.get('count') || 25), MAX);
       const offset = Number(u.searchParams.get('offset') || 0);
       const page = feedback.slice(offset, offset + count);
@@ -66,10 +76,12 @@ export function lbFetch(data = {}) {
       if (!SIMILAR_ALGORITHMS.includes(u.searchParams.get('algorithm'))) errors.push('algorithm value is not a valid enumeration member');
       if (errors.length) return new Response(`<p>${errors.length} validation errors for SimilarArtistsViewerInput: ${errors.join('; ')}</p>`, { status: 400, headers: { 'content-type': 'text/html' } });
       if (failed('similar', mbid)) return json({ error: 'paused' }, 503);
+      const b = badBody('similar', mbid); if (b) return b;
       return json(similar[mbid] || []);
     }
     if (p === '/1/popularity/artist' && method === 'POST') {
       if (failed('popularity')) return json({ error: 'paused' }, 503);
+      const b = badBody('popularity'); if (b) return b;
       const ids = JSON.parse(init.body).artist_mbids;
       return json(ids.map((id) => ({
         artist_mbid: id,
@@ -81,6 +93,7 @@ export function lbFetch(data = {}) {
     if (m) {
       const mbid = decodeURIComponent(m[1]);
       if (failed('tops', mbid)) return json({ error: 'paused' }, 503);
+      const b = badBody('tops', mbid); if (b) return b;
       return json(tops[mbid] || []);
     }
     return json({ error: `fake LB: no route for ${method} ${p}` }, 404);
