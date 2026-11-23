@@ -45,3 +45,16 @@ test('a reported Spotify ID is stored for the run and served from the cache next
     handle.close();
   }
 });
+
+test('#8 a run and its items are written together: a failed item leaves no run', async () => {
+  const { handle } = await library();
+  try {
+    handle.online.exec(`CREATE TEMP TRIGGER fail_item BEFORE INSERT ON rec_item BEGIN SELECT RAISE(ABORT, 'injected'); END`);
+    await assert.rejects(recommend(handle, opts), /injected/);
+    assert.equal(handle.online.prepare('SELECT count(*) AS n FROM rec_run').get().n, 0);
+    assert.equal(handle.online.isTransaction, false);
+    assert.equal(handle.main.isTransaction, false);
+  } finally {
+    handle.close();
+  }
+});
