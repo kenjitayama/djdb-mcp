@@ -10,6 +10,15 @@ Three entry points, zero runtime dependencies (`node:sqlite` and `fetch` only). 
 
 dj-mcp remains the user-facing playback client. If this package is not installed, dj-mcp behaves exactly as it does today.
 
+## Purpose
+
+Public music APIs give a new app little to build personal recommendations on.
+
+- Spotify removed Recommendations and Related Artists, among other endpoints, for new and development-mode Web API apps on [2024-11-27](https://developer.spotify.com/blog/2024-11-27-changes-to-the-web-api).
+- ListenBrainz computes personal recommendations in batches: daily and weekly playlists, and [collaborative-filtering recommendations](https://listenbrainz.readthedocs.io/en/latest/users/api/recommendation.html) with a `last_updated` time. LB Radio builds playlists on demand from a prompt, but its personal inputs (your statistics and recommendations) are batch results too.
+
+djdb-mcp keeps your own listening history in a local database and gives AI agents an on-demand recommender built on it. ListenBrainz stays its only data source: your listens and feedback, plus similar artists and popularity.
+
 ## Requirements
 
 - Node `>=24.15.0 <25 || >=26 <27` (checked at runtime). dj-mcp itself stays on `>=20`; it disables the recommender on an unsupported Node rather than breaking playback.
