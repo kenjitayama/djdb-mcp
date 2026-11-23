@@ -54,7 +54,7 @@ Commands:
 |---|---|
 | `djdb init` | Create the databases and bind them to one ListenBrainz account. Token from `LISTENBRAINZ_TOKEN` or the token file. |
 | `djdb refresh` | Lock, sync, match, build the graph and popularity. This is the usual way data changes. First sync: `--export <dir>`. Later syncs use `/listens` deltas. `--listens-full-history` pages the whole history only when an export is unavailable. |
-| `djdb status` | Lock, last refresh and whether it was incomplete (暫定), library counts. `--json` available. |
+| `djdb status` | Lock (reported only: a running refresh does not stop recommend), last refresh and whether it was incomplete (暫定), library counts. `--json` available. |
 | `djdb account-rename <name>` | After a ListenBrainz username change. The token must belong to `<name>`. |
 | `djdb unlock` | Delete `djdb.lock` if the process that holds it is gone. A running holder keeps it (exit 1). |
 | `djdb online-reset --yes` | Empty the online DB in place. Without `--yes` nothing changes. Restart running dj-mcp processes afterwards. |
@@ -141,13 +141,13 @@ Nothing else in `lib/` is public.
 Under one lock file (`djdb.lock`, deleted only by its creator):
 
 1. Check the schema version. A djdb 0.1 database (schema v1) is refused with `schema_too_old`: move the data directory aside and rebuild with `djdb init` and `djdb refresh --export <dir>`.
-2. `lb-sync` — first run imports a ListenBrainz export (`--export`); later runs fetch only new listens from `GET /1/user/{user}/listens` with `min_ts` set a small overlap before the last fetched `listened_at`. `UNIQUE(source_key)` absorbs the overlap. Paging the whole history through `/listens` happens only with `--listens-full-history`. Love/hate feedback is also pulled here.
-3. `match`: recordings in this order: MBID → ISRC → normalized name. An MBID that arrives later attaches to the artist or track first matched by name or ISRC. Then a 60-second cross-via dedup safety net, which never merges two plays whose MBIDs or ISRCs differ. `lb_feedback.track_id` is re-attached via MBID at the end of this stage.
+2. `lb-sync` — first run imports a ListenBrainz export (`--export`); later runs fetch only new listens from `GET /1/user/{user}/listens` with `min_ts` set a small overlap before the last fetched `listened_at`. `UNIQUE(source_key)` absorbs the overlap. Paging the whole history through `/listens` happens only with `--listens-full-history`. Love/hate feedback is also pulled here; if that fetch fails, the old set stays and the stage is `partial`.
+3. `match`: recordings in this order: MBID → ISRC → normalized name. An MBID that arrives later attaches to the artist or track first matched by name or ISRC. Then a 60-second cross-via dedup safety net, which never merges two plays whose MBIDs or ISRCs differ. A play without an MBID may also match by name a track with an MBID that you have played, never a catalog-only one. A pair whose plays ListenBrainz later maps to different MBIDs is split again, and a changed mapping clears the play's match until this stage runs. `lb_feedback.track_id` is re-attached via MBID at the end of this stage.
 4. `graph`: ListenBrainz similar-artists for every played artist with an MBID, stored as `lb:similar-artists:<algorithm>`. A similar artist you have never played is added as a catalog artist (alias source `lb:catalog`). Catalog artists are graph destinations only, and a play is never matched to one by name.
-5. `popularity`: ListenBrainz artist popularity and top recordings for played artists and the 300 catalog artists most strongly linked from them. The first 10 top recordings of each are added as tracks, which is where discover finds recordings you have not heard.
+5. `popularity`: ListenBrainz artist popularity and top recordings for played artists and the 300 catalog artists most strongly linked from them. The first 10 top recordings of each are cached and added as tracks, which is where discover finds recordings you have not heard.
 6. Write `refreshed_at` and `refresh_note`.
 
-`graph` and `popularity` commit each ListenBrainz response to `fetch_cache` as it arrives, then rebuild their tables from the cache in one transaction. A request that fails keeps the old cached response. Each stage commits, and readers read the main DB inside one read transaction, so `recommend()` always sees a committed state. A failed stage stops the run and leaves earlier stages in place. A stage with failed requests finishes as `partial`. Either way `status()` labels the library 暫定 (provisional) until a complete refresh.
+`graph` and `popularity` commit each ListenBrainz response to `fetch_cache` as it arrives, then rebuild their tables from the cache in one transaction. A request that fails keeps the old cached response. A 2xx whose body is not JSON, or not the shape of that endpoint, is a failed request (`lb_bad_response`) and nothing is written from it. Each stage commits, and readers read the main DB inside one read transaction, so `recommend()` always sees a committed state. A failed stage stops the run and leaves earlier stages in place. A stage with failed requests finishes as `partial`. Either way `status()` labels the library 暫定 (provisional) until a complete refresh.
 
 ## Recommend modes
 
