@@ -63,3 +63,33 @@ test('a refresh that fails on an API outage keeps the last committed state reada
     handle.close();
   }
 });
+
+test('while a refresh holds djdb.lock, a reader still gets status ok and recommendations; the lock is only reported', async () => {
+  const { handle, dbPath, configDir, client } = await library();
+  try {
+    let release;
+    const gate = new Promise((r) => { release = r; });
+    let entered;
+    const inside = new Promise((r) => { entered = r; });
+    const opts = { client, skipTokenCheck: true };
+    const stages = defaultStages(handle, opts);
+    stages.splice(1, 0, { name: 'hold', run: async () => { entered(); await gate; } });
+    const running = refresh(handle, { ...opts, stages });
+    await inside;
+    const h = openReader({ dbPath, configDir, online: 'read' });
+    try {
+      const st = status(h);
+      assert.match(st.lock, /refresh running/);
+      assert.equal(st.ok, true, st.reason);
+      assert.equal(st.reason, 'ok');
+    } finally {
+      h.close();
+    }
+    assert.ok((await readerView(dbPath, configDir)).items.length > 0);
+    release();
+    assert.equal((await running).ok, true);
+    assert.equal(status(handle).lock, null);
+  } finally {
+    handle.close();
+  }
+});
