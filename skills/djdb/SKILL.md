@@ -20,7 +20,7 @@ It prints JSON with `--json`. A failed command exits 1 and prints `{"error":{cod
 ## Before anything
 - `no database`: the user must run `djdb init` (ListenBrainz token via `LISTENBRAINZ_TOKEN`) then `djdb refresh --export <dir>` with the extracted ListenBrainz export folder (`user.json` and `listens/`). Later refreshes are incremental.
 - `never refreshed`: run `djdb refresh`. `schema_too_old`: the database is from djdb 0.1; follow the hint to rebuild.
-- 暫定 in `status`: the last refresh stopped early or some ListenBrainz requests failed; results use what was fetched before. Run `djdb refresh` again later.
+- Provisional in `status`: the last refresh stopped early or some ListenBrainz requests failed; results use what was fetched before. Run `djdb refresh` again later.
 - `lock` in `status` is informational: recommend works while a refresh runs. A `stale lock` only blocks the next refresh; show its pid and time, and `djdb unlock` removes it only if that pid is gone.
 - `online_db_mismatch`: recommend is disabled; suggest `djdb online-reset --yes` once the user agrees.
 - Never print the ListenBrainz token. Never submit listens or feedback to ListenBrainz from this package.

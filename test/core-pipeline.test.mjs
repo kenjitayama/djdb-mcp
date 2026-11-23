@@ -177,7 +177,7 @@ test('feedback pull is all-or-nothing; score 0 is not stored', async () => {
   }
 });
 
-test('a refresh that fails at lb-sync is recorded, and status marks it 暫定', async () => {
+test('a refresh that fails at lb-sync is recorded, and status marks it provisional', async () => {
   const { handle } = await freshDb({ client: fakeClient({ fail: { listens: true } }) });
   try {
     assert.match(status(handle).reason, /never refreshed/);
@@ -188,7 +188,7 @@ test('a refresh that fails at lb-sync is recorded, and status marks it 暫定', 
     assert.equal(st.ok, true);
     assert.equal(st.refreshed_at, 5000);
     assert.equal(st.provisional, true);
-    assert.match(st.provisional_note, /暫定.*lb-sync/);
+    assert.match(st.provisional_note, /^Provisional: .*lb-sync/);
   } finally {
     handle.close();
   }

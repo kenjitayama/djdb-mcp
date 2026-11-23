@@ -31,7 +31,7 @@
 - While a refresh holds the lock, `status` stays `ok`, shows the lock, and `recommend()` returns items.
 - A crash mid-batch leaves none of that batch's rows.
 - `recommend()` works on the committed state after every stage, and after a refresh that fails on an API outage.
-- After a failed stage, or a stage with failed ListenBrainz requests (`partial`), `status` shows 暫定 until a complete refresh.
+- After a failed stage, or a stage with failed ListenBrainz requests (`partial`), `status` marks the library provisional until a complete refresh.
 - A failed graph or popularity request keeps the cached response and its edges. A 2xx that is not JSON, has the wrong shape, or has rows without the fields every live row had, or is a feedback walk whose pages stop before `total_count` counts as failed (`lb_bad_response`): listens fail `lb-sync` without marking the import done, feedback keeps the old set and marks `lb-sync` partial, and nothing invalid is cached.
 - Readers open the main DB read-only. While refresh holds a write transaction they see the last committed state. Their handle cannot write.
 - A schema v1 (djdb 0.1) main or online DB is refused with `schema_too_old`.
@@ -58,7 +58,7 @@
 ## Approved implementation notes
 
 - Token file path: `~/.config/djdb-mcp/lb-token.json` (mode 0600). Approved.
-- `DEFAULT_PARAMS` in `lib/recommend.mjs` are 暫定 / provisional and will be tuned after evaluation (`alpha=0.4`, `beta=0.5`, `rho=0.6`, `kappa=10`, `T=365d`, `q=20`, `m=3`).
+- `DEFAULT_PARAMS` in `lib/recommend.mjs` are provisional and will be tuned after evaluation (`alpha=0.4`, `beta=0.5`, `rho=0.6`, `kappa=10`, `T=365d`, `q=20`, `m=3`).
 - Standalone MCP tools: `status`, `recommend` (preview, `record: false`), `explain`. Library counts are part of `status`.
 - Match order: MBID → ISRC → normalized name. Approved.
 - Missing `recording_msid`: `source_key = lb:<listened_at>|nomssid:<hex>` with the hash defined in `nomssidFrom()`. Approved; covered by a stability test.

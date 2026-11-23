@@ -75,7 +75,7 @@ test('a failed top-recordings fetch is counted and the stage says partial', asyn
   }
 });
 
-test('a refresh with a partial stage is recorded, and status marks it 暫定', async () => {
+test('a refresh with a partial stage is recorded, and status marks it provisional', async () => {
   const { handle } = await H.freshDb();
   try {
     ingestListens(handle.main, [withArtistMbid(H.listen({ at: 1000, msid: 'p1', artist: 'Played', title: 'Mine' }), P)]);
@@ -87,7 +87,7 @@ test('a refresh with a partial stage is recorded, and status marks it 暫定', a
     assert.equal(handle.main.prepare(`SELECT value FROM meta WHERE key='refresh_note'`).get().value, 'stage graph partial: 1 LB requests failed');
     const st = status(handle);
     assert.equal(st.provisional, true);
-    assert.match(st.provisional_note, /^暫定: the last refresh was incomplete/);
+    assert.match(st.provisional_note, /^Provisional: the last refresh was incomplete/);
   } finally {
     handle.close();
   }

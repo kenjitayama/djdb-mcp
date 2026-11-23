@@ -55,7 +55,7 @@ test('a refresh that fails on an API outage keeps the last committed state reada
     assert.deepEqual(await readerView(dbPath, configDir), before);
     const st = status(handle);
     assert.equal(st.ok, true);
-    assert.match(st.provisional_note, /暫定.*lb-sync/);
+    assert.match(st.provisional_note, /^Provisional: .*lb-sync/);
     const again = await refresh(handle, { client: libraryClient(), skipTokenCheck: true });
     assert.equal(again.ok, true, JSON.stringify(again.results));
     assert.equal(status(handle).provisional, false);

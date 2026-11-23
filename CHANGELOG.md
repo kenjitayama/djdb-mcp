@@ -18,7 +18,7 @@ Fixed:
 - discover recommends recordings you have not played, including ones not in your library (#2).
 - Evaluation at `cutoffAt` ignores later plays and hates (#13).
 - A seed with a name and a URI resolves by the name (#4).
-- Graph and popularity keep cached data when a request fails, report `partial`, and `status` shows 暫定 (#11).
+- Graph and popularity keep cached data when a request fails, report `partial`, and `status` marks the library provisional (#11).
 - An MBID that arrives later attaches to the earlier name or ISRC match (#6). Dedup never merges plays whose MBIDs or ISRCs differ (#7).
 - A failed init leaves no database (#10).
 - `/listens` paging moves forward with `min_ts` and backward with `max_ts`, and requests are paced. Feedback paging reads every page.
