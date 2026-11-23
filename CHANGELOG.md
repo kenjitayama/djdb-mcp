@@ -26,7 +26,7 @@ Fixed:
 - An unsupported Node, including 20, exits 2 with what to install.
 - `status` reports a held or stale `djdb.lock` under `lock` and stays `ok`, so recommend keeps working during a refresh.
 - Similar artists are requested with `artist_mbids` and an algorithm the labs API accepts (`..._skip_30`). The old request was always refused with 400.
-- A ListenBrainz 2xx that is not JSON, or not the shape of that endpoint, fails with `lb_bad_response` before anything is written. A failed feedback fetch keeps the old set and marks `lb-sync` partial.
+- A ListenBrainz 2xx that is not JSON, or not the shape of that endpoint, fails with `lb_bad_response` before anything is written. So do feedback pages that stop before `total_count`. A failed feedback fetch keeps the old set and marks `lb-sync` partial.
 - A play without IDs joins a played track of the same name that has an MBID. A dedup pair is split again when ListenBrainz maps its plays to different MBIDs. A changed mapping clears the play's old match at once.
 - recommend returns each track once. Only the kept top recordings of an artist are cached.
 
