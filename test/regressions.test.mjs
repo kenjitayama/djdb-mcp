@@ -63,7 +63,7 @@ test('LB-paging a delta sync with 2,500 new listens ingests all of them, paging 
   assert.ok(listenCalls.every((c) => c.params.max_ts == null && c.params.min_ts != null));
 });
 
-test('LB-feedback feedback paging reads every page (total_count, not the page count)', { todo: 'J13' }, async () => {
+test('LB-feedback feedback paging reads every page (total_count, not the page count)', async () => {
   const fb = Array.from({ length: 1500 }, (_, i) => ({ recording_mbid: `cccccccc-cccc-4ccc-8ccc-${String(i).padStart(12, '0')}`, score: 1, created: 1000 + i }));
   const client = fakeClient({ feedback: fb });
   let n = 0;
