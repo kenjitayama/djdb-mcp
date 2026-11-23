@@ -120,7 +120,7 @@ test('#1 unlock removes a lock whose pid is gone, without a prompt', async () =>
   assert.equal(existsSync(lockPath), false);
 });
 
-test('#2 discover returns catalog recordings the user has never played', { todo: 'J17b, J18' }, async () => {
+test('#2 discover returns catalog recordings the user has never played', async () => {
   const { handle } = await library();
   const cutoff = 2_000_000_000;
   const r = await recommend(handle, { mode: 'discover', n: 10, record: false, cutoffAt: cutoff });
@@ -131,7 +131,7 @@ test('#2 discover returns catalog recordings the user has never played', { todo:
   }
 });
 
-test('#13 evaluation at cutoff_at ignores hates and plays from after the cutoff', { todo: 'J18' }, async () => {
+test('#13 evaluation at cutoff_at ignores hates and plays from after the cutoff', async () => {
   const cutoff = 1_800_000_000;
   const laterPlay = withArtistMbid(H.listen({ at: 1_850_000_000, msid: 'c2', artist: 'Light', title: 'Unknown', mapped: REC_UNKNOWN }), ARTIST_C);
   const run = async (hateCreated) => {

@@ -16,6 +16,8 @@ const B_MBID = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
 const T1 = '11111111-1111-1111-1111-111111111111';
 const T2 = '22222222-2222-2222-2222-222222222222';
 const T3 = '33333333-3333-3333-3333-333333333333';
+const T4 = '44444444-4444-4444-4444-444444444444'; // Alpha's top recording, never played
+const T5 = '55555555-5555-5555-5555-555555555555'; // Beta's top recording, never played, hated
 
 function baseListens() {
   const t0 = 1_200_000_000; // ~2008
@@ -38,7 +40,7 @@ function clientFor(listens) {
     listens,
     feedback: [
       { recording_mbid: T1, score: 1, created: 1_199_000_000 },
-      { recording_mbid: T3, score: -1, created: 1_790_000_000 },
+      { recording_mbid: T5, score: -1, created: 1_790_000_000 },
     ],
     similar: {
       // filled after match assigns MBIDs — artists may not have MBIDs from listens
@@ -47,9 +49,11 @@ function clientFor(listens) {
       [A_MBID]: [
         { recording_mbid: T1, recording_name: 'Song One' },
         { recording_mbid: T2, recording_name: 'Song Two' },
+        { recording_mbid: T4, recording_name: 'Song Three' },
       ],
       [B_MBID]: [
         { recording_mbid: T3, recording_name: 'Other' },
+        { recording_mbid: T5, recording_name: 'Another' },
       ],
     },
   });
@@ -100,8 +104,7 @@ test('init + refresh with fixture listens, then recommend returns items', async 
     assert.ok(rec.items.length >= 1, 'expected recommend items, got ' + JSON.stringify(rec));
     assert.ok(rec.run_id > 0);
     assert.ok(rec.items[0].recording_mbid || rec.items[0].title);
-    // hate should exclude T3
-    assert.ok(!rec.items.some((it) => it.recording_mbid === T3), 'hated recording should be excluded');
+    assert.deepEqual(rec.items.map((it) => it.recording_mbid), [T4], 'played and hated recordings are excluded');
     // standalone preview does not write a new run if record:false
     const before = rec.run_id;
     const preview = await recommend(handle, { mode: 'discover', n: 5, record: false, client });
@@ -196,7 +199,10 @@ test('recordExternalIds unknown_run is non-fatal; online-reset does not reuse ru
   const { handle } = await freshDb({ client });
   try {
     await refresh(handle, { client, skipTokenCheck: true, listensFullHistory: true });
+    handle.main.prepare(`UPDATE artist SET mbid=? WHERE name='Alpha'`).run(A_MBID);
+    await refresh(handle, { client, skipTokenCheck: true });
     const rec = await recommend(handle, { mode: 'discover', n: 2, record: true, client });
+    assert.ok(rec.run_id > 0, JSON.stringify(rec));
     const staleId = rec.run_id;
     const msg = onlineReset(handle.online, handle.main);
     assert.match(msg.message, /restart/);

@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as H from './helpers.mjs';
-import { library, libraryClient, REC_KNOWN } from './library.mjs';
+import { library, libraryClient, REC_UNKNOWN } from './library.mjs';
 import { refresh, defaultStages } from '../lib/refresh.mjs';
 import { openReader } from '../lib/open.mjs';
 import { recommend } from '../lib/recommend.mjs';
@@ -38,7 +38,7 @@ test('recommend works on the committed state after every refresh stage', async (
     assert.ok(views.graph.edges > 0);
     assert.equal(views.graph.tops, 0);
     assert.ok(views.popularity.tops > 0);
-    assert.ok(views.popularity.items.includes(REC_KNOWN), JSON.stringify(views.popularity));
+    assert.ok(views.popularity.items.includes(REC_UNKNOWN), JSON.stringify(views.popularity));
   } finally {
     handle.close();
   }
