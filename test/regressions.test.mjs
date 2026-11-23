@@ -18,18 +18,18 @@ import { runCli } from '../lib/cli.mjs';
 
 const mbids = (r) => (r.items || []).map((i) => i.recording_mbid);
 
-test('#6 a name-matched artist that later gets an MBID does not break matching', { todo: 'J15' }, async () => {
+test('#6 a name-matched artist that later gets an MBID does not break matching', async () => {
   const { handle } = await H.freshDb();
   ingestListens(handle.main, [
     H.listen({ at: 1000, msid: 'a1', artist: 'Kenji Band', title: 'One' }),
     withArtistMbid(H.listen({ at: 2000, msid: 'a2', artist: 'Kenji Band', title: 'Two' }), ARTIST_M),
   ]);
   matchPlays(handle.main);
-  const rows = handle.main.prepare('SELECT DISTINCT a.mbid FROM play p JOIN artist a ON a.id = p.artist_id').all();
+  const rows = handle.main.prepare('SELECT DISTINCT a.mbid FROM play p JOIN artist a ON a.id = p.artist_id').all().map((r) => ({ ...r }));
   assert.deepEqual(rows, [{ mbid: ARTIST_M }]);
 });
 
-test('#6b a mapping that arrives after the first match re-matches the play', { todo: 'J15' }, async () => {
+test('#6b a mapping that arrives after the first match re-matches the play', async () => {
   const { handle } = await H.freshDb();
   ingestListens(handle.main, [H.listen({ at: 1000, msid: 'b1', artist: 'Solo', title: 'Song' })]);
   matchPlays(handle.main);
@@ -37,6 +37,17 @@ test('#6b a mapping that arrives after the first match re-matches the play', { t
   matchPlays(handle.main);
   const r = handle.main.prepare('SELECT p.match_method, t.mbid FROM play p JOIN track t ON t.id = p.track_id').get();
   assert.deepEqual({ ...r }, { match_method: 'mbid', mbid: REC_KNOWN });
+});
+
+test('#6 (track) an ISRC-matched track that later gets an MBID keeps one track', async () => {
+  const { handle } = await H.freshDb();
+  ingestListens(handle.main, [
+    H.listen({ at: 1000, msid: 'i1', artist: 'Kenji Band', title: 'One', isrc: 'JPAAA0000001' }),
+    H.listen({ at: 2000, msid: 'i2', artist: 'Kenji Band', title: 'One', isrc: 'JPAAA0000001', mapped: REC_KNOWN }),
+  ]);
+  matchPlays(handle.main);
+  const rows = handle.main.prepare('SELECT DISTINCT t.mbid FROM play p JOIN track t ON t.id = p.track_id').all().map((r) => ({ ...r }));
+  assert.deepEqual(rows, [{ mbid: REC_KNOWN }]);
 });
 
 test('#5 an export import that stopped midway is not silently turned into delta syncs', async () => {
