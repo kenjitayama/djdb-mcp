@@ -30,7 +30,7 @@ This package is not published to npm. dj-mcp pins one git tag in its `optionalDe
 
 ```json
 "optionalDependencies": {
-  "@kenjitayama/djdb-mcp": "github:kenjitayama/djdb-mcp#v0.2.0"
+  "@kenjitayama/djdb-mcp": "github:kenjitayama/djdb-mcp#v0.2.1"
 }
 ```
 

@@ -1,6 +1,6 @@
 {
   "name": "@kenjitayama/djdb-mcp",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "ListenBrainz-backed personal music library and recommender: SQLite store, refresh pipeline, and MCP server (zero dependencies). Usable as a library or a standalone server. Not affiliated with ListenBrainz or MetaBrainz.",

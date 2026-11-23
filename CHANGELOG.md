@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1
+
+No schema or API change. `API_VERSION` stays 2.
+
+Changed:
+- Output and docs are in English only. `status` writes its note as `Provisional: the last refresh was incomplete (...)` (it began with a Japanese word before), and the MCP server's `status` tool description says "provisional". Comments, test names, VERIFY and the skill follow. CJK names remain only in the tests that check CJK normalization.
+- The README calls `djdb-online.sqlite` the run log: a local SQLite file next to the main DB, called the online DB in the code and CLI.
+- README: a Purpose section, timeless wording for dj-mcp without this package (it works, without `recommend`), and generic advice on importing your history into ListenBrainz.
+
 ## 0.2.0
 
 Breaking. A 0.1 database (schema v1) is refused with `schema_too_old`: move the data directory aside, then `djdb init` and `djdb refresh --export <dir>`. `API_VERSION` is 2.
