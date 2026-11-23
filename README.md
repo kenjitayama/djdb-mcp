@@ -147,8 +147,7 @@ Listens without a ListenBrainz `recording_msid` use `source_key = lb:<listened_a
 ## Development
 
 ```
-npm test            # node --test test/*.test.mjs
-npm run test:schema # validate-schema.mjs (VALIDATION_OK rejects=16 checks=75)
+npm test   # node --test test/*.test.mjs (includes the schema tests)
 ```
 
 Live ListenBrainz verification is pending (the account is not usable yet). Stages that talk to ListenBrainz are covered with fixtures and mocks.

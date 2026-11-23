@@ -2,8 +2,7 @@
 
 ## Automated
 
-- `node test/validate-schema.mjs` prints `VALIDATION_OK rejects=16 checks=75`.
-- `npm test` (or `node --test test/*.test.mjs`) passes, including the stdio MCP smoke test.
+- `npm test` (or `node --test test/*.test.mjs`) passes, including the schema tests and the stdio MCP smoke test.
 - Docs never suggest invoking the CLI via a bare unscoped name from a public registry.
 - Tracked files contain no tokens, Client IDs, device names, personal usernames, or machine-local absolute paths.
 

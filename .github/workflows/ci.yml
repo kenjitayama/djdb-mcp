@@ -20,7 +20,5 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node }}
-      - name: schema validation
-        run: node test/validate-schema.mjs
       - name: unit and smoke tests
         run: node --test test/*.test.mjs
