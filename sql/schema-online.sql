@@ -3,10 +3,10 @@
 -- track_id / artist_id are main-DB ids; readers follow main-DB merged_into before using them.
 PRAGMA foreign_keys = ON;
 
--- main_db_key = the main DB's lb_account_key (mismatch: other main DB, recommend disabled; `djdb online-reset`).
--- id_epoch = the main DB's id_epoch. On mismatch, and on `djdb online-reset`, every table here is emptied in place
--- (one BEGIN EXCLUSIVE on the same file, no rename).
--- Migrated in open(): BEGIN IMMEDIATE, re-read user_version, migrate, bump, COMMIT.
+-- main_db_key = the main DB's lb_account_key, set when a fresh online DB is first opened for writing.
+-- On mismatch (another main DB) recommend is disabled and nothing is deleted. `djdb online-reset --yes`
+-- empties every table in place (one BEGIN EXCLUSIVE on the same file, no rename) and rebinds.
+-- Migrated on open for writing: BEGIN IMMEDIATE, re-read user_version, migrate, bump, COMMIT.
 CREATE TABLE meta (
   key   TEXT PRIMARY KEY,
   value TEXT NOT NULL

@@ -6,7 +6,7 @@ import { recommend } from '../lib/recommend.mjs';
 import { status } from '../lib/status.mjs';
 import { ingestListens, pullFeedback } from '../lib/sync.mjs';
 import { matchPlays, dedupPlays, setCanonical } from '../lib/match.mjs';
-import { recordExternalIds, recordEvent, explain, onlineReset, epochCheck } from '../lib/online.mjs';
+import { recordExternalIds, recordEvent, explain, onlineReset } from '../lib/online.mjs';
 import { API_VERSION, open, LIB_USER_VERSION } from '../lib/index.mjs';
 import { normalizeArtist, normalizeTitle, NORM_VERSION } from '../lib/normalize.mjs';
 import { canon } from '../lib/canon.mjs';

@@ -31,8 +31,10 @@
 - Readers open the main DB read-only. While refresh holds a write transaction they see the last committed state. Their handle cannot write.
 - A schema v1 (djdb 0.1) main or online DB is refused with `schema_too_old`.
 
-## Online reset
+## Online DB
 
+- `djdb init` and `djdb refresh` do not create it. `openReader({ online: 'write' })` creates it and binds it to the main DB's `lb_account_key`. The standalone MCP server never creates it.
+- An online DB bound to another main DB disables `recommend` with `online_db_mismatch` and deletes nothing.
 - `online-reset` empties tables in place, does not clear `sqlite_sequence`, and tells you to restart dj-mcp. Writes to old run ids return `unknown_run`.
 
 ## Live ListenBrainz (pending)

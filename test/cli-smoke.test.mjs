@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCli } from '../lib/cli.mjs';
+import { openReader } from '../lib/open.mjs';
 import { mockClient, freshDb, listen } from './helpers.mjs';
 import { createCore } from '../lib/mcp-core.mjs';
 
@@ -48,6 +49,8 @@ test('CLI init, status, refresh, unlock, online-reset', async () => {
   assert.equal(await runCli(['snapshot-pin', '1', 'eval'], common), 1);
   assert.match(logs.at(-1), /unknown_command/);
 
+  assert.equal(existsSync(join(dir, 'djdb-online.sqlite')), false, 'init and refresh do not create the online DB');
+  openReader({ dbPath, configDir: cfg, online: 'write' }).close();
   const { DatabaseSync } = await import('node:sqlite');
   const online = new DatabaseSync(join(dir, 'djdb-online.sqlite'));
   online.exec(`INSERT INTO rec_run (created_at, mode, algo_version, params_hash, params_json) VALUES (1, 'discover', 'v11', 'h', '{}')`);

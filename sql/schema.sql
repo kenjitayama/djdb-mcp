@@ -2,7 +2,7 @@ PRAGMA foreign_keys = ON;
 
 -- Main DB: written ONLY by `djdb refresh` (plus `djdb init` / `djdb account-rename`, which touch meta only).
 -- Readers open it read-only and read inside one transaction.
--- meta keys: lb_account_key (local, never changes), id_epoch (new UUID on init), lb_user,
+-- meta keys: lb_account_key (new UUID on init, never changes; the online DB binds to it), lb_user,
 -- lb_feedback_synced_at, lb_listens_synced_max_ts, refreshed_at, refresh_note
 -- artist / track rows are never deleted, only merged; AUTOINCREMENT so an id is never reused.
 CREATE TABLE meta (
@@ -146,7 +146,7 @@ CREATE INDEX edge_dst ON edge(dst, source);
 
 -- Read-only mirror of the user's existing ListenBrainz recording feedback (love = +1, hate = -1; includes
 -- Last.fm Loved if LB's Last.fm import brought them). Fully replaced by each refresh. Nothing writes feedback
--- anywhere in phase 1; recommend() reads it from the snapshot only.
+-- anywhere; recommend() only reads it.
 CREATE TABLE lb_feedback (
   recording_key  TEXT PRIMARY KEY CHECK (recording_key GLOB 'mbid:?*' OR recording_key GLOB 'msid:?*'),
   recording_mbid TEXT,

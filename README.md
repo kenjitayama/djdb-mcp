@@ -122,7 +122,7 @@ import {
 - `recordEvent(online, runId, rank, kind)` — if `runId` is missing or unknown, nothing is written and `{ error: 'unknown_run' }` is returned (non-fatal for dj-mcp).
 - `explain(online, runId)` — the run's parameters and items.
 
-`openReader({ online: 'write' })` opens the main DB read-only and migrates the online DB (`BEGIN IMMEDIATE` → re-read `user_version` → migrate → bump → COMMIT) and, on an `id_epoch` mismatch, resets the online DB in place against the **live** main DB's epoch.
+`openReader({ online: 'write' })` opens the main DB read-only, creates and migrates the online DB if needed (`BEGIN IMMEDIATE` → re-read `user_version` → migrate → bump → COMMIT), and binds a fresh one to the main DB's `lb_account_key`. An online DB bound to another main DB is never emptied automatically: `recommend()` returns `disabled` with `online_db_mismatch` until you run `djdb online-reset --yes`. `openReader({ online: 'read' })` never creates the online DB.
 
 ## How refresh works
 

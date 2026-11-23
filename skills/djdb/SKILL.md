@@ -22,7 +22,7 @@ It prints JSON with `--json`; on failure it exits 1 and prints `{"error":{code,m
 - `never refreshed`: run `djdb refresh`. `schema_too_old`: the database is from djdb 0.1; follow the hint to rebuild.
 - 暫定 in `status`: the last refresh stopped early; results use the earlier stages. Run `djdb refresh` again later.
 - `stale lock`: show the pid and time from `djdb status`. `djdb unlock` removes it only if that pid is gone.
-- `main_db_key mismatch`: recommend is disabled; suggest `djdb online-reset --yes` once the user agrees.
+- `online_db_mismatch`: recommend is disabled; suggest `djdb online-reset --yes` once the user agrees.
 - Never print the ListenBrainz token. Never submit listens or feedback to ListenBrainz from this package.
 
 ## What to call
