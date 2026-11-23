@@ -41,3 +41,52 @@ test('an ID-less play with an ISRC does not join a played MBID track whose ISRCs
   matchPlays(db);
   assert.notEqual(trackOf(db, 'other-isrc'), trackOf(db, 'with-mbid'));
 }));
+
+// ---- canonical pairs follow the IDs LB gives later ----
+
+import { defaultStages } from '../lib/refresh.mjs';
+import { dedupPlays } from '../lib/match.mjs';
+
+async function matchStage(handle) {
+  return defaultStages(handle, { client: {}, skipTokenCheck: true }).find((s) => s.name === 'match').run();
+}
+
+const pairFixture = (mapped = {}) => [
+  listen({ at: 1000, msid: 'via-lastfm', artist: 'Band', title: 'Song', via: 'lastfm', mapped: mapped.a }),
+  listen({ at: 1010, msid: 'via-spotify', artist: 'Band', title: 'Song', via: 'spotify', mapped: mapped.b }),
+];
+const roots = (db) => db.prepare(`SELECT count(*) AS n FROM play WHERE canonical_play_id IS NULL`).get().n;
+
+test('a name-deduped pair is undone when LB later maps the two plays to different MBIDs', async () => {
+  const { handle } = await freshDb();
+  const db = handle.main;
+  try {
+    ingestListens(db, pairFixture());
+    await matchStage(handle);
+    assert.equal(roots(db), 1);
+    ingestListens(db, pairFixture({ a: M1, b: M2 }));
+    const r = await matchStage(handle);
+    assert.equal(r.unpaired, 1);
+    assert.equal(roots(db), 2);
+    assert.notEqual(trackOf(db, 'via-lastfm'), trackOf(db, 'via-spotify'));
+    assert.equal(db.prepare(`SELECT count(*) AS n FROM play WHERE track_id IS NULL`).get().n, 0);
+  } finally {
+    handle.close();
+  }
+});
+
+test('a pair whose plays gain the same MBID stays paired', async () => {
+  const { handle } = await freshDb();
+  const db = handle.main;
+  try {
+    ingestListens(db, pairFixture());
+    await matchStage(handle);
+    ingestListens(db, pairFixture({ a: M1, b: M1 }));
+    const r = await matchStage(handle);
+    assert.equal(r.unpaired, 0);
+    assert.equal(roots(db), 1);
+    assert.equal(dedupPlays(db).paired, 0);
+  } finally {
+    handle.close();
+  }
+});
