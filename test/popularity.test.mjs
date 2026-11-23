@@ -92,3 +92,21 @@ test('a refresh with a partial stage is recorded, and status marks it 暫定', a
     handle.close();
   }
 });
+
+test('only the kept top recordings are cached, not the whole LB list', async () => {
+  const { refresh } = await import('../lib/refresh.mjs');
+  const { TOP_RECORDINGS_KEPT } = await import('../lib/popularity.mjs');
+  const A = '55555555-5555-4555-8555-555555555555';
+  const rows = Array.from({ length: TOP_RECORDINGS_KEPT + 5 }, (_, i) =>
+    topRecording({ artistMbid: A, artist: 'Many', mbid: `eeeeeeee-eeee-4eee-8eee-${String(i).padStart(12, '0')}`, title: `T${i}`, listens: 1000 - i }));
+  const client = fakeClient({ listens: [withArtistMbid(H.listen({ at: 1_700_000_000, msid: 'x', artist: 'Many', title: 'T0' }), A)], tops: { [A]: rows } });
+  const { handle } = await H.freshDb({ client });
+  try {
+    assert.equal((await refresh(handle, { client, skipTokenCheck: true, listensFullHistory: true })).ok, true);
+    const body = JSON.parse(handle.main.prepare(`SELECT body FROM fetch_cache WHERE endpoint='lb:top-recordings' AND key=?`).get(A).body);
+    assert.equal(body.length, TOP_RECORDINGS_KEPT);
+    assert.deepEqual(body.map((r) => r.recording_name), rows.slice(0, TOP_RECORDINGS_KEPT).map((r) => r.recording_name));
+  } finally {
+    handle.close();
+  }
+});
