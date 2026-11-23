@@ -9,8 +9,8 @@ const json = (f) => JSON.parse(readFileSync(new URL(`../${f}`, import.meta.url),
 
 test('the library exports only what dj-mcp uses', () => {
   assert.deepEqual(Object.keys(api).sort(), [
-    'API_VERSION', 'NODE_RANGE', 'explain', 'nodeSupported', 'openReader', 'recommend',
-    'recordEvent', 'recordExternalIds', 'resolveDbPath', 'status',
+    'API_VERSION', 'NODE_RANGE', 'explain', 'nodeSupported', 'normalizeArtist', 'normalizeTitle',
+    'openReader', 'recommend', 'recordEvent', 'recordExternalIds', 'resolveDbPath', 'status',
   ]);
 });
 

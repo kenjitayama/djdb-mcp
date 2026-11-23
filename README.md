@@ -122,6 +122,8 @@ import {
   recordExternalIds,
   recordEvent,
   explain,
+  normalizeTitle,       // the same normalization djdb uses for title_norm,
+  normalizeArtist,      // so dj-mcp can check a Spotify match against an item
 } from '@kenjitayama/djdb-mcp';
 ```
 
