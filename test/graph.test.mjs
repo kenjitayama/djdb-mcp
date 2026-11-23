@@ -7,6 +7,7 @@ import { withArtistMbid } from './library.mjs';
 import { ingestListens } from '../lib/sync.mjs';
 import { matchPlays } from '../lib/match.mjs';
 import { refreshGraph } from '../lib/graph.mjs';
+import { recommend } from '../lib/recommend.mjs';
 
 const A = 'a0000000-0000-4000-8000-000000000001';
 const B = 'a0000000-0000-4000-8000-000000000002';
@@ -66,7 +67,7 @@ test('an unknown similar artist is registered as a catalog artist and is not fet
   }
 });
 
-test('a play under a catalog artist\'s name still matches the played artist', async () => {
+test('a play or a seed under a catalog artist\'s name means the played artist', async () => {
   const { db, handle, similar } = await threeArtists();
   try {
     await refreshGraph(db, fakeClient({ similar }), { nowSec: 100 });
@@ -75,6 +76,8 @@ test('a play under a catalog artist\'s name still matches the played artist', as
     const ids = db.prepare(`SELECT DISTINCT artist_id FROM play WHERE raw_artist='Xenon'`).all();
     assert.equal(ids.length, 1, 'both unmapped plays land on one artist');
     assert.equal(db.prepare(`SELECT count(*) AS n FROM artist WHERE name='Xenon'`).get().n, 2, 'the catalog row and the played row stay apart');
+    const r = await recommend(handle, { mode: 'discover', n: 3, record: false, seeds: [{ name: 'Xenon' }], cutoffAt: 10_000 });
+    assert.deepEqual(r.unresolved, [], 'a name seed resolves to the played artist, not ambiguous');
   } finally {
     handle.close();
   }

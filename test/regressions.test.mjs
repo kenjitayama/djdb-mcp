@@ -145,10 +145,12 @@ test('#13 evaluation at cutoff_at ignores hates and plays from after the cutoff'
   assert.ok(!(await run(1_750_000_000)).includes(REC_UNKNOWN), 'a hate before the cutoff hides it');
 });
 
-test('#4 a seed with both a name and a Spotify URI resolves by name', { todo: 'J19' }, async () => {
+test('#4 a seed with both a name and a Spotify URI resolves by name', async () => {
   const { handle } = await library();
   const r = await recommend(handle, { mode: 'discover', n: 5, record: false, seeds: [{ name: 'Light', uri: 'spotify:artist:abc' }] });
   assert.deepEqual(r.unresolved, []);
+  const uriOnly = await recommend(handle, { mode: 'discover', n: 5, record: false, seeds: [{ uri: 'spotify:artist:abc' }] });
+  assert.equal(uriOnly.unresolved[0]?.reason, 'uri_not_resolved');
 });
 
 test('#9 the MCP server reads without writing: a missing online DB is not created', async () => {
