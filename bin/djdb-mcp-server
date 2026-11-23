@@ -1,0 +1,86 @@
+#!/usr/bin/env node
+// djdb-mcp: zero-dependency MCP stdio server (newline-delimited JSON-RPC 2.0).
+// The standalone server opens the online DB read-only and never records recommendation runs.
+import { createCore, errorPayload } from '../lib/mcp-core.mjs';
+import { createInterface } from 'node:readline';
+import { readFileSync } from 'node:fs';
+import { assertNode, NODE_RANGE } from '../lib/node-range.mjs';
+
+try {
+  assertNode();
+} catch (e) {
+  process.stderr.write(e.message + '\n');
+  process.exit(2);
+}
+
+const pkg = JSON.parse(readFileSync(new URL('../plugin.json', import.meta.url), 'utf8'));
+const SUPPORTED = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'];
+const core = createCore();
+
+const send = (msg) => process.stdout.write(JSON.stringify(msg) + '\n');
+const log = (...a) => process.stderr.write(`[djdb-mcp-server] ${a.join(' ')}\n`);
+
+async function handle(msg) {
+  const { id, method, params } = msg;
+  const isRequest = id !== undefined && id !== null;
+  try {
+    switch (method) {
+      case 'initialize': {
+        const requested = params?.protocolVersion;
+        return isRequest && send({
+          jsonrpc: '2.0',
+          id,
+          result: {
+            protocolVersion: SUPPORTED.includes(requested) ? requested : SUPPORTED[0],
+            capabilities: { tools: { listChanged: false } },
+            serverInfo: { name: pkg.name, version: pkg.version },
+            instructions: 'djdb-mcp: personal ListenBrainz-backed library and recommender. The standalone server is read-oriented: recommend returns recording MBIDs and ISRCs only and does not write the online DB. Writes (init, refresh, restore, …) go through the djdb CLI. If status says no database, the user must run djdb init and djdb refresh. Never invent listens or recommendations; never print ListenBrainz tokens.',
+          },
+        });
+      }
+      case 'notifications/initialized':
+      case 'notifications/cancelled':
+        return;
+      case 'ping':
+        return isRequest && send({ jsonrpc: '2.0', id, result: {} });
+      case 'tools/list':
+        return send({ jsonrpc: '2.0', id, result: { tools: core.tools.map(({ handler, ...t }) => t) } });
+      case 'tools/call': {
+        const name = params?.name;
+        try {
+          const out = await core.callTool(name, params?.arguments || {});
+          return send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: JSON.stringify(out, null, 2) }], isError: false } });
+        } catch (e) {
+          return send({ jsonrpc: '2.0', id, result: { content: [{ type: 'text', text: JSON.stringify(errorPayload(e), null, 2) }], isError: true } });
+        }
+      }
+      default:
+        if (isRequest) send({ jsonrpc: '2.0', id, error: { code: -32601, message: `Method not found: ${method}` } });
+    }
+  } catch (e) {
+    log('handler error:', e?.message);
+    if (isRequest) send({ jsonrpc: '2.0', id, error: { code: -32603, message: e?.message || 'Internal error' } });
+  }
+}
+
+const pending = new Set();
+const rl = createInterface({ input: process.stdin, crlfDelay: Infinity });
+rl.on('line', (line) => {
+  if (!line.trim()) return;
+  let msg;
+  try {
+    msg = JSON.parse(line);
+  } catch {
+    return send({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } });
+  }
+  const batch = Array.isArray(msg) ? msg : [msg];
+  for (const m of batch) {
+    const p = handle(m).finally(() => pending.delete(p));
+    pending.add(p);
+  }
+});
+rl.on('close', async () => {
+  await Promise.allSettled([...pending]);
+  process.exit(0);
+});
+log(`ready (db ${core.paths.dbPath}, node ${process.versions.node}, range ${NODE_RANGE})`);

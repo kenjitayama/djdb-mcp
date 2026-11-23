@@ -1,0 +1,34 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "djdb-mcp",
+  "version": "0.1.0",
+  "description": "A read-oriented MCP server for a personal ListenBrainz-backed music library and recommender: status, preview recommendations (recording MBIDs and ISRCs only), and library stats. Writes happen only through the djdb CLI (refresh, restore, …). Zero-dependency Node stdio server. Not affiliated with or endorsed by ListenBrainz or MetaBrainz.",
+  "author": {
+    "name": "Kenji Tayama",
+    "email": "kenjitayama@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/kenjitayama/djdb-mcp",
+  "repository": "https://github.com/kenjitayama/djdb-mcp",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "music",
+    "listenbrainz",
+    "recommender",
+    "agent-plugin"
+  ],
+  "extensions": {
+    "com.cursor": {
+      "variables": {
+        "type": "object",
+        "properties": {
+          "DJDB_PATH": {
+            "type": "string",
+            "title": "Path to the main djdb.sqlite file",
+            "description": "Optional override of the main database path. Defaults to the path in config.json or the XDG data directory."
+          }
+        }
+      }
+    }
+  }
+}

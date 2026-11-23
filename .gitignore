@@ -1,0 +1,30 @@
+# Secrets / auth state (normally live in ~/.config/djdb-mcp, never in the repo)
+lb-token.json
+tokens.json
+tokens*.json
+config.json
+*.tmp
+.env
+.env.*
+*.pem
+*.key
+
+# Local databases and snapshots
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+snapshots/
+eval/
+
+# Local, machine-specific notes and artifacts
+LOCAL.md
+*.local.md
+VERIFY.local.md
+artifacts/
+*.log
+
+# Tooling
+node_modules/
+coverage/
+.DS_Store

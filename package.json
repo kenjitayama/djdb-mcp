@@ -1,0 +1,50 @@
+{
+  "name": "@kenjitayama/djdb-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ListenBrainz-backed personal music library and recommender: SQLite store, refresh pipeline, and MCP server (zero dependencies). Usable as a library or a standalone server. Not affiliated with ListenBrainz or MetaBrainz.",
+  "license": "MIT",
+  "author": "Kenji Tayama <kenjitayama@users.noreply.github.com>",
+  "homepage": "https://github.com/kenjitayama/djdb-mcp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kenjitayama/djdb-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kenjitayama/djdb-mcp/issues"
+  },
+  "engines": {
+    "node": ">=24.15.0 <25 || >=26 <27"
+  },
+  "exports": {
+    ".": "./lib/index.mjs"
+  },
+  "bin": {
+    "djdb": "bin/djdb",
+    "djdb-mcp-server": "bin/djdb-mcp-server"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "sql",
+    "skills",
+    "plugin.json",
+    "mcp.json",
+    "README.md",
+    "LICENSE",
+    "VERIFY.md"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "test:schema": "node test/validate-schema.mjs"
+  },
+  "keywords": [
+    "mcp",
+    "listenbrainz",
+    "recommender",
+    "sqlite",
+    "music",
+    "agent-plugin"
+  ]
+}

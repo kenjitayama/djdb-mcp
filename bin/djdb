@@ -1,0 +1,17 @@
+#!/usr/bin/env node
+// CLI for @kenjitayama/djdb-mcp. Invoke as:
+//   node <path-to-package>/bin/djdb <command>
+// or, when installed under dj-mcp:
+//   node <dj-mcp>/node_modules/@kenjitayama/djdb-mcp/bin/djdb <command>
+//   npm exec --prefix <dj-mcp> --no -- djdb <command>
+import { assertNode } from '../lib/node-range.mjs';
+import { runCli } from '../lib/cli.mjs';
+
+try {
+  assertNode();
+} catch (e) {
+  process.stderr.write(e.message + '\n');
+  process.exit(2);
+}
+
+runCli(process.argv.slice(2)).then((code) => process.exit(code));

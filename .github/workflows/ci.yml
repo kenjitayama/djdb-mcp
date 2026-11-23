@@ -1,0 +1,26 @@
+# Draft CI. Not wired to publish. Runs tests on the Node versions required by engines.
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  test:
+    name: test (${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 24.15.0 is the engines floor (run once). 24-latest and 26-latest cover the rest of the range.
+        node: ['24.15.0', '24', '26']
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+      - name: schema validation
+        run: node test/validate-schema.mjs
+      - name: unit and smoke tests
+        run: node --test test/*.test.mjs

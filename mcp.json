@@ -1,0 +1,13 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "djdb-mcp": {
+      "type": "stdio",
+      "command": "./bin/djdb-mcp-server",
+      "cwd": "${PLUGIN_ROOT}",
+      "env": {
+        "DJDB_PATH": "${DJDB_PATH}"
+      }
+    }
+  }
+}
