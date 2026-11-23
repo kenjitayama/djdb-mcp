@@ -15,7 +15,7 @@ When the package is installed under dj-mcp:
 
 or `npm exec --prefix <dj-mcp> --no -- djdb <command>`.
 
-It prints JSON with `--json`; on failure it exits 1 and prints `{"error":{code,message,hint}}`.
+It prints JSON with `--json`. A failed command exits 1 and prints `{"error":{code,message,hint}}`. `status` always prints its report and exits 1 when `ok` is false; read `reason` and `hint` there.
 
 ## Before anything
 - `no database`: the user must run `djdb init` (ListenBrainz token via `LISTENBRAINZ_TOKEN`) then `djdb refresh --export <dir>` with the extracted ListenBrainz export folder (`user.json` and `listens/`). Later refreshes are incremental.
@@ -28,7 +28,7 @@ It prints JSON with `--json`; on failure it exits 1 and prints `{"error":{code,m
 ## What to call
 - Health / "is the library ready?" → `status` (or `djdb status --json`).
 - Counts of plays, artists, tracks → `status` (the `counts` field).
-- "Recommend something" / discover vs. rediscover → `recommend` with `mode` and optional `n`, `seeds`. The standalone server returns recording MBIDs and ISRCs only and does not record the run. Playback IDs are dj-mcp's job.
+- "Recommend something" → `recommend` with `mode` and optional `n`, `seeds`. `discover` finds recordings the user has not played; `rediscover` brings back artists from an earlier era. The standalone server returns recording MBIDs and ISRCs only and does not record the run. Playback IDs are dj-mcp's job.
 - Explain a run that dj-mcp recorded → `explain { run_id }`.
 
 ## Rules

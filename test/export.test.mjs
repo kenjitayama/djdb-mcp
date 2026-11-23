@@ -105,3 +105,38 @@ test('djdb refresh --export <dir> imports the export', async () => {
   assert.equal(code, 0, JSON.stringify(logs));
   assert.equal(logs[0].results[0].listens.inserted, 10);
 });
+
+test('LISTENBRAINZ_EXPORT works like --export', async () => {
+  const dir = writeExport(twoMonths());
+  const { handle, dbPath, configDir, tokenFile, client } = await H.freshDb();
+  handle.close();
+  const logs = [];
+  const saved = process.env.LISTENBRAINZ_EXPORT;
+  process.env.LISTENBRAINZ_EXPORT = dir;
+  try {
+    const code = await runCli(['refresh', '--json'], { out: (o) => logs.push(o), client, skipTokenCheck: true, dbPath, configDir, tokenFile });
+    assert.equal(code, 0, JSON.stringify(logs));
+    assert.equal(logs[0].results[0].listens.inserted, 10);
+  } finally {
+    if (saved === undefined) delete process.env.LISTENBRAINZ_EXPORT; else process.env.LISTENBRAINZ_EXPORT = saved;
+  }
+});
+
+test('a listen added to LB later with an old timestamp needs a new export; LB deletions do not reach djdb', async () => {
+  const months = twoMonths();
+  const { handle } = await H.freshDb();
+  try {
+    await syncListens(handle.main, fakeClient({}), 'tester', { exportDir: writeExport(months) });
+    const backdated = H.listen({ at: 1_704_067_200 - 30 * DAY, msid: 'old1', artist: 'A', title: 'Dec' });
+    const lb = [...months['2024/1'], ...months['2024/2'], backdated];
+    const delta = await syncListens(handle.main, fakeClient({ listens: lb }), 'tester', {});
+    assert.equal(delta.inserted, 0, 'the delta starts near the newest listen, so it never sees the back-dated one');
+    const again = await syncListens(handle.main, fakeClient({ listens: lb }), 'tester', { exportDir: writeExport({ ...months, '2023/12': [backdated] }) });
+    assert.equal(again.inserted, 1);
+    assert.equal(plays(handle.main), 11);
+    await syncListens(handle.main, fakeClient({ listens: lb.slice(1) }), 'tester', {});
+    assert.equal(plays(handle.main), 11, 'a listen deleted on LB stays');
+  } finally {
+    handle.close();
+  }
+});

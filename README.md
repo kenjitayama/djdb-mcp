@@ -17,11 +17,11 @@ dj-mcp remains the user-facing playback client. If this package is not installed
 
 ## Install
 
-Until a provenance publish of `@kenjitayama/djdb-mcp` is decided, pin a single git tag from dj-mcp's `optionalDependencies`:
+This package is not published to npm. dj-mcp pins one git tag in its `optionalDependencies`:
 
 ```json
 "optionalDependencies": {
-  "@kenjitayama/djdb-mcp": "github:kenjitayama/djdb-mcp#v0.1.0"
+  "@kenjitayama/djdb-mcp": "github:kenjitayama/djdb-mcp#v0.2.0"
 }
 ```
 
@@ -77,11 +77,16 @@ No command prompts. `--db <path>` overrides the main database path. `djdb refres
 
 ### Init
 
-1. Create a ListenBrainz token on listenbrainz.org.
-2. `LISTENBRAINZ_TOKEN=YOUR_LISTENBRAINZ_TOKEN node <path>/bin/djdb init`
-3. Import your history into ListenBrainz first (Last.fm import, then a Spotify export for gaps). This tool only *reads* ListenBrainz. Then download a ListenBrainz listens export and extract the JSON.
+1. Create a ListenBrainz user token on listenbrainz.org.
+2. `LISTENBRAINZ_TOKEN=YOUR_LISTENBRAINZ_TOKEN node <path>/bin/djdb init`. Init checks the token with ListenBrainz and saves it to the token file (mode `0600`), so later commands do not need the variable. Init refuses to run over an existing database, and a failed init leaves no database behind.
+3. Import your history into ListenBrainz first (Last.fm import, then a Spotify export for gaps). This tool only *reads* ListenBrainz. Then request a listens export on ListenBrainz, download the ZIP, and extract it.
 4. `node <path>/bin/djdb refresh --export <extracted-export-dir>`
-5. Later refreshes are incremental (`/listens` with `min_ts` and a small overlap). `node <path>/bin/djdb status`
+5. Later refreshes are incremental (`/listens` with `min_ts` and a one-hour overlap). `node <path>/bin/djdb status`
+
+### Two things a delta refresh does not see
+
+- **Listens added later with old timestamps.** A delta refresh asks only for listens newer than the last one it has. If you import older history into ListenBrainz after your first refresh (for example a Spotify ZIP), request a new export and run `djdb refresh --export <new-export-dir>`. Plays already in djdb are not duplicated.
+- **Deletions.** A listen you delete on ListenBrainz stays in djdb. To drop it, rebuild: move the data directory aside, then `djdb init` and `djdb refresh --export <dir>`.
 
 ## MCP server
 
@@ -118,9 +123,10 @@ import {
 } from '@kenjitayama/djdb-mcp';
 ```
 
-- `recommend({ mode, n, provider, market, seeds, record })` — `mode` is `discover` or `rediscover`. Pass `record: false` for a dry run (used by the standalone MCP server). Seeds are `{ mbid }` or `{ name }`; Spotify artist URIs must be resolved to a name by dj-mcp first.
-- `recordEvent(online, runId, rank, kind)` — if `runId` is missing or unknown, nothing is written and `{ error: 'unknown_run' }` is returned (non-fatal for dj-mcp).
-- `explain(online, runId)` — the run's parameters and items.
+- `recommend(handle, { mode, n, provider, market, seeds, record, cutoffAt })`. `mode` is `discover` or `rediscover` (see below). `record: false` is a dry run that writes nothing (the standalone MCP server uses it). A recorded run and its items are written in one transaction. Seeds are `{ mbid }` or `{ name }`. A seed with a name and a Spotify URI resolves by the name; a seed with only a URI comes back in `unresolved` with `uri_not_resolved`.
+- `recordExternalIds(online, main, runId, items, { market })` stores the playback IDs dj-mcp found for a run's items. The ID cache is per market: an ID found for `JP` is not served for `US`.
+- `recordEvent(online, runId, rank, kind)`. If `runId` is missing or unknown, nothing is written and `{ error: 'unknown_run' }` is returned (non-fatal for dj-mcp).
+- `explain(online, runId)` returns the run's parameters and items.
 
 `openReader({ online: 'write' })` opens the main DB read-only, creates and migrates the online DB if needed (`BEGIN IMMEDIATE` → re-read `user_version` → migrate → bump → COMMIT), and binds a fresh one to the main DB's `lb_account_key`. An online DB bound to another main DB is never emptied automatically: `recommend()` returns `disabled` with `online_db_mismatch` until you run `djdb online-reset --yes`. `openReader({ online: 'read' })` never creates the online DB.
 
@@ -130,12 +136,19 @@ Under one lock file (`djdb.lock`, deleted only by its creator):
 
 1. Check the schema version. A djdb 0.1 database (schema v1) is refused with `schema_too_old`: move the data directory aside and rebuild with `djdb init` and `djdb refresh --export <dir>`.
 2. `lb-sync` — first run imports a ListenBrainz export (`--export`); later runs fetch only new listens from `GET /1/user/{user}/listens` with `min_ts` set a small overlap before the last fetched `listened_at`. `UNIQUE(source_key)` absorbs the overlap. Paging the whole history through `/listens` happens only with `--listens-full-history`. Love/hate feedback is also pulled here.
-3. `match` — recordings in this order: MBID → ISRC → normalized name. Then a 60-second cross-via dedup safety net. `lb_feedback.track_id` is re-attached via MBID at the end of this stage.
-4. `graph` — ListenBrainz similar-artists, stored as `lb:similar-artists:<algorithm>`.
-5. `popularity` — ListenBrainz artist popularity and top recordings (cached in `fetch_cache`).
+3. `match`: recordings in this order: MBID → ISRC → normalized name. An MBID that arrives later attaches to the artist or track first matched by name or ISRC. Then a 60-second cross-via dedup safety net, which never merges two plays whose MBIDs or ISRCs differ. `lb_feedback.track_id` is re-attached via MBID at the end of this stage.
+4. `graph`: ListenBrainz similar-artists for every played artist with an MBID, stored as `lb:similar-artists:<algorithm>`. A similar artist you have never played is added as a catalog artist (alias source `lb:catalog`). Catalog artists are graph destinations only, and a play is never matched to one by name.
+5. `popularity`: ListenBrainz artist popularity and top recordings for played artists and the 300 catalog artists most strongly linked from them. The first 10 top recordings of each are added as tracks, which is where discover finds recordings you have not heard.
 6. Write `refreshed_at` and `refresh_note`.
 
-Each stage commits in batches, and readers read the main DB inside one read transaction, so `recommend()` always sees a committed state. A failed stage stops the run and leaves earlier stages in place. `status()` then labels the library 暫定 (provisional) until a refresh succeeds.
+`graph` and `popularity` commit each ListenBrainz response to `fetch_cache` as it arrives, then rebuild their tables from the cache in one transaction. A request that fails keeps the old cached response. Each stage commits, and readers read the main DB inside one read transaction, so `recommend()` always sees a committed state. A failed stage stops the run and leaves earlier stages in place. A stage with failed requests finishes as `partial`. Either way `status()` labels the library 暫定 (provisional) until a complete refresh.
+
+## Recommend modes
+
+- `discover`: recordings you have not played, from artists near your taste in the graph who are not among your heaviest. A recording you played before the cutoff is skipped, and so is the same song under another recording (same primary artist and normalized title).
+- `rediscover`: artists you played heavily in an earlier era and barely play now. Their top recordings, or else your own most played tracks by them.
+
+Both modes count only plays and love/hate feedback from before `cutoffAt` (default: now), and recommend one recording per artist.
 
 ## Algorithm parameters (暫定 / provisional)
 
