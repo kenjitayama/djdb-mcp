@@ -71,7 +71,7 @@ test('LB-feedback feedback paging reads every page (total_count, not the page co
   assert.equal(n, 1500);
 });
 
-test('#10 an init that fails midway leaves no database behind and can be rerun', { todo: 'J11' }, async () => {
+test('#10 an init that fails midway leaves no database behind and can be rerun', async () => {
   const root = H.tmpRoot();
   const blocker = join(root, 'not-a-dir');
   writeFileSync(blocker, '');
