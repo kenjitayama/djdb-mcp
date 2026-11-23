@@ -6,12 +6,24 @@
 //   OLDEST `count` rows after it (ASC) and returns them newest first. Without min_ts it takes
 //   the newest `count` rows before max_ts. count is capped at 1000.
 // - get-feedback returns { feedback, count: <rows in this page>, total_count, offset }.
+// - similar-artists (labs) validates like the real API: artist_mbids is required (artist_mbid is
+//   not accepted) and algorithm must be one of SIMILAR_ALGORITHMS, else 400. Measured 2026-11-23.
 // - Any endpoint listed in `fail` answers 503.
 // - `rateLimit: { remaining, resetIn }` adds X-RateLimit-Remaining / X-RateLimit-Reset-In to every response.
 // Data is read per request, so a test can change `client.data` between calls.
 import { createListenBrainzClient } from '../lib/listenbrainz.mjs';
 
 const MAX = 1000;
+
+/** The algorithm values labs similar-artists accepted on 2026-11-23 (from its 400 body). */
+export const SIMILAR_ALGORITHMS = [
+  'session_based_days_1800_session_300_contribution_3_threshold_10_limit_100_filter_True_skip_30',
+  'session_based_days_75_session_300_contribution_5_threshold_10_limit_100_filter_True_skip_30',
+  'session_based_days_9000_session_300_contribution_5_threshold_15_limit_50_skip_30',
+  'session_based_days_7500_session_300_contribution_5_threshold_10_limit_100_filter_True_skip_30',
+  'session_based_days_1825_session_300_contribution_3_threshold_10_limit_100_filter_True_skip_30',
+  'session_based_days_7500_session_300_contribution_3_threshold_10_limit_100_filter_True_skip_30',
+];
 
 export function lbFetch(data = {}) {
   const calls = [];
@@ -48,7 +60,11 @@ export function lbFetch(data = {}) {
       return json({ feedback: page, count: page.length, total_count: feedback.length, offset });
     }
     if (p === '/similar-artists/json') {
-      const mbid = u.searchParams.get('artist_mbid');
+      const mbid = u.searchParams.get('artist_mbids');
+      const errors = [];
+      if (!mbid) errors.push('artist_mbids field required');
+      if (!SIMILAR_ALGORITHMS.includes(u.searchParams.get('algorithm'))) errors.push('algorithm value is not a valid enumeration member');
+      if (errors.length) return new Response(`<p>${errors.length} validation errors for SimilarArtistsViewerInput: ${errors.join('; ')}</p>`, { status: 400, headers: { 'content-type': 'text/html' } });
       if (failed('similar', mbid)) return json({ error: 'paused' }, 503);
       return json(similar[mbid] || []);
     }
