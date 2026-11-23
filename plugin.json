@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "djdb-mcp",
   "version": "0.1.0",
-  "description": "A read-oriented MCP server for a personal ListenBrainz-backed music library and recommender: status, preview recommendations (recording MBIDs and ISRCs only), and library stats. Writes happen only through the djdb CLI (refresh, restore, …). Zero-dependency Node stdio server. Not affiliated with or endorsed by ListenBrainz or MetaBrainz.",
+  "description": "A read-oriented MCP server for a personal ListenBrainz-backed music library and recommender: status with library counts, preview recommendations (recording MBIDs and ISRCs only), and explain. Writes happen only through the djdb CLI (init, refresh). Zero-dependency Node stdio server. Not affiliated with or endorsed by ListenBrainz or MetaBrainz.",
   "author": {
     "name": "Kenji Tayama",
     "email": "kenjitayama@users.noreply.github.com"

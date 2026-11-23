@@ -1,6 +1,6 @@
 ---
 name: djdb
-description: Inspect a personal ListenBrainz-backed music library and preview recommendations with the djdb-mcp tools — status (with library counts), recommend (MBID/ISRC only), and explain. Use when asked what the local djdb library contains, whether a refresh is needed, or for a discover/rediscover preview. Writes (init, refresh, restore) go through the djdb CLI, not these tools.
+description: Inspect a personal ListenBrainz-backed music library and preview recommendations with the djdb-mcp tools — status (with library counts), recommend (MBID/ISRC only), and explain. Use when asked what the local djdb library contains, whether a refresh is needed, or for a discover/rediscover preview. Writes (init, refresh) go through the djdb CLI, not these tools.
 ---
 
 # djdb-mcp (library + recommender)

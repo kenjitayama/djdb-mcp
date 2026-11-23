@@ -34,7 +34,7 @@ async function handle(msg) {
             protocolVersion: SUPPORTED.includes(requested) ? requested : SUPPORTED[0],
             capabilities: { tools: { listChanged: false } },
             serverInfo: { name: pkg.name, version: pkg.version },
-            instructions: 'djdb-mcp: personal ListenBrainz-backed library and recommender. The standalone server is read-oriented: recommend returns recording MBIDs and ISRCs only and does not write the online DB. Writes (init, refresh, restore, …) go through the djdb CLI. If status says no database, the user must run djdb init and djdb refresh. Never invent listens or recommendations; never print ListenBrainz tokens.',
+            instructions: 'djdb-mcp: personal ListenBrainz-backed library and recommender. The standalone server is read-oriented: recommend returns recording MBIDs and ISRCs only and does not write the online DB. Writes (init, refresh) go through the djdb CLI. If status says no database, the user must run djdb init and djdb refresh. Never invent listens or recommendations; never print ListenBrainz tokens.',
           },
         });
       }

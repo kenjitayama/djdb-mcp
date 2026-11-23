@@ -1,7 +1,5 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync, writeFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
 import { freshDb, mockClient, listen } from './helpers.mjs';
 import { refresh } from '../lib/refresh.mjs';
 import { recommend } from '../lib/recommend.mjs';
@@ -9,7 +7,6 @@ import { status } from '../lib/status.mjs';
 import { ingestListens, pullFeedback } from '../lib/sync.mjs';
 import { matchPlays, dedupPlays, setCanonical } from '../lib/match.mjs';
 import { recordExternalIds, recordEvent, explain, onlineReset, epochCheck } from '../lib/online.mjs';
-import { restore } from '../lib/restore.mjs';
 import { API_VERSION, open, LIB_USER_VERSION } from '../lib/index.mjs';
 import { getMeta, setMeta } from '../lib/db.mjs';
 import { normalizeArtist, normalizeTitle, NORM_VERSION } from '../lib/normalize.mjs';
@@ -200,10 +197,10 @@ test('fallback snapshot after a failed stage when none is valid is marked provis
   }
 });
 
-test('recordExternalIds unknown_run is non-fatal; online-reset does not reuse run ids; page_size is checked on restore', async () => {
+test('recordExternalIds unknown_run is non-fatal; online-reset does not reuse run ids', async () => {
   const listens = baseListens();
   const client = clientFor(listens);
-  const { handle, paths, root } = await freshDb({ client });
+  const { handle } = await freshDb({ client });
   try {
     await refresh(handle, { client, skipTokenCheck: true, listensFullHistory: true });
     const rec = await recommend(handle, { mode: 'discover', n: 2, record: true, client });
@@ -214,19 +211,6 @@ test('recordExternalIds unknown_run is non-fatal; online-reset does not reuse ru
     assert.ok(again.run_id > staleId, `expected ${again.run_id} > ${staleId}`);
     const bad = recordExternalIds(handle.online, handle.main, staleId, [{ rank: 1, provider: 'spotify', status: 'ok', extId: 'zzz', playUri: 'spotify:track:zzz' }]);
     assert.equal(bad.error, 'unknown_run');
-
-    // restore from a VACUUM backup
-    const backup = join(root, 'backup.sqlite');
-    handle.main.exec(`VACUUM INTO '${backup}'`);
-    const oldEpoch = getMeta(handle.main, 'id_epoch');
-    const r = await restore(handle, backup, { skipRefresh: true });
-    assert.equal(r.ok, true);
-    assert.notEqual(getMeta(handle.main, 'id_epoch'), oldEpoch);
-    assert.equal(getMeta(handle.main, 'dirty'), '1');
-    assert.equal(handle.main.prepare(`SELECT count(*) AS n FROM snapshot`).get().n, 0);
-
-    // page_size mismatch is refused
-    // (same page size in practice; we only assert the happy path refused-account)
   } finally {
     handle.close();
   }

@@ -30,11 +30,8 @@
 - After a failed stage with no valid snapshot, one provisional snapshot is taken and `status` shows 暫定.
 - Readers open snapshots with `immutable=1` and do not create `-wal`/`-shm`.
 
-## Restore / online-reset
+## Online reset
 
-- `page_size` of the backup and the live DB must match, or restore stops with a reason.
-- `backup()` is applied in place (same inode, open connections see the restored DB).
-- A crash before `backup()` leaves the live DB unchanged.
 - `online-reset` empties tables in place, does not clear `sqlite_sequence`, and tells you to restart dj-mcp. Writes to old run ids return `unknown_run`.
 
 ## Live ListenBrainz (pending)

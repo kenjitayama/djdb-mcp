@@ -1,7 +1,7 @@
 PRAGMA foreign_keys = ON;
 
 -- Main DB: written ONLY by `djdb refresh` (plus `djdb init` / `djdb account-rename`, which touch meta only).
--- meta keys: lb_account_key (local, never changes), id_epoch (new UUID on init and `djdb restore`), lb_user,
+-- meta keys: lb_account_key (local, never changes), id_epoch (new UUID on init), lb_user,
 -- dirty (0/1, set in the same transaction as each refresh batch that changed rows), lb_feedback_synced_at
 -- artist / track rows are never deleted, only merged; AUTOINCREMENT so an id is never reused.
 CREATE TABLE meta (

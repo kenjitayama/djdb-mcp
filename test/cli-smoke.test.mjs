@@ -42,6 +42,9 @@ test('CLI init, status, refresh, unlock, online-reset', async () => {
   assert.equal(await runCli(['refresh', '--listens-full-history'], common), 0);
   assert.equal(await runCli(['status', '--json'], common), 0);
   assert.equal(await runCli(['unlock'], common), 0);
+  logs.length = 0;
+  assert.equal(await runCli(['restore', 'backup.sqlite'], common), 1);
+  assert.match(logs.at(-1), /unknown_command/);
 
   const { DatabaseSync } = await import('node:sqlite');
   const online = new DatabaseSync(join(dir, 'djdb-online.sqlite'));

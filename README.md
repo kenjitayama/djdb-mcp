@@ -58,7 +58,6 @@ Commands:
 | `djdb account-rename <name>` | After a ListenBrainz username change. The token must belong to `<name>`. |
 | `djdb unlock` | Delete `djdb.lock` if the process that holds it is gone. A running holder keeps it (exit 1). |
 | `djdb snapshot-pin <id> <label>` | Pin a verified snapshot (for later evaluation). |
-| `djdb restore <file>` | Restore a backup in place (`backup()`, not a file rename). Then refresh to publish a new snapshot. |
 | `djdb online-reset --yes` | Empty the online DB in place. Without `--yes` nothing changes. Restart running dj-mcp processes afterwards. |
 
 No command prompts. `--db <path>` overrides the main database path. `djdb refresh --export <file>` passes a ListenBrainz export (extracted JSON). `--listens-full-history` is the explicit opt-in to page the entire history through `GET /1/user/{user}/listens` when no export is available.
