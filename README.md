@@ -100,7 +100,7 @@ Generic stdio (newline-delimited JSON-RPC 2.0):
 }
 ```
 
-Optional: set `DJDB_PATH` if the database is not in the default location. Tools: `status`, `recommend` (preview, no writes), `explain`, `library_stats`.
+Optional: set `DJDB_PATH` if the database is not in the default location. Tools: `status` (including library counts), `recommend` (preview, no writes), `explain`.
 
 ## Library API
 

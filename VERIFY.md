@@ -46,7 +46,7 @@
 
 - Token file path: `~/.config/djdb-mcp/lb-token.json` (mode 0600). Approved.
 - `DEFAULT_PARAMS` in `lib/recommend.mjs` are 暫定 / provisional and will be tuned after evaluation (`alpha=0.4`, `beta=0.5`, `rho=0.6`, `kappa=10`, `T=365d`, `q=20`, `m=3`).
-- Standalone MCP tools: `status`, `recommend` (preview, `record: false`), `explain`, `library_stats`. Approved.
+- Standalone MCP tools: `status`, `recommend` (preview, `record: false`), `explain`. Library counts are part of `status`.
 - Match order: MBID → ISRC → normalized name. Approved.
 - Missing `recording_msid`: `source_key = lb:<listened_at>|nomssid:<hex>` with the hash defined in `nomssidFrom()`. Approved; covered by a stability test.
 - First listen sync imports a ListenBrainz export; later syncs are `/listens` deltas with overlap. Full `/listens` paging only with `--listens-full-history`. Approved.

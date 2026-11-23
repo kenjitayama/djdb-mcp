@@ -83,7 +83,7 @@ test('MCP stdio: initialize, tools/list, tools/call(status) against the real ser
 
   send({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
   const names = (await wait(2)).result.tools.map((t) => t.name);
-  assert.deepEqual(names, ['status', 'recommend', 'explain', 'library_stats']);
+  assert.deepEqual(names, ['status', 'recommend', 'explain']);
 
   send({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'status', arguments: {} } });
   const st = await wait(3);

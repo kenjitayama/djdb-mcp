@@ -4,7 +4,7 @@ import { mkdtempSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { resolveDbPath, resolveSnapshotPath, resolveConfigDir, tokenFilePath, pathsFromDb } from '../lib/paths.mjs';
-import { withLockSync, lockStatus, unlockForce } from '../lib/lock.mjs';
+import { withLockAsync, lockStatus, unlockForce } from '../lib/lock.mjs';
 
 test('resolveDbPath: option > env > config.json > default data dir', () => {
   const root = mkdtempSync(join(tmpdir(), 'djdb-path-'));
@@ -38,12 +38,12 @@ test('snapshot path must stay under snapshots/', () => {
   assert.throws(() => resolveSnapshotPath(snaps, '../x.db'));
 });
 
-test('lock: only the creator deletes it; stale locks are not auto-recovered', () => {
+test('lock: only the creator deletes it; stale locks are not auto-recovered', async () => {
   const root = mkdtempSync(join(tmpdir(), 'djdb-lock-'));
   const lockPath = join(root, 'djdb.lock');
   const inner = [];
-  const outer = withLockSync(lockPath, 'refresh', () => {
-    inner.push(withLockSync(lockPath, 'refresh', () => 'x'));
+  const outer = await withLockAsync(lockPath, 'refresh', async () => {
+    inner.push(await withLockAsync(lockPath, 'refresh', () => 'x'));
     return existsSync(lockPath);
   });
   assert.equal(outer.result, true);
@@ -51,7 +51,7 @@ test('lock: only the creator deletes it; stale locks are not auto-recovered', ()
   assert.equal(existsSync(lockPath), false);
 
   writeFileSync(lockPath, JSON.stringify({ pid: 999999999, token: 'other', command: 'refresh', started_at: 1 }));
-  const r = withLockSync(lockPath, 'refresh', () => 'ran');
+  const r = await withLockAsync(lockPath, 'refresh', () => 'ran');
   assert.equal(r.locked, true);
   assert.equal(existsSync(lockPath), true);
   assert.match(lockStatus(lockPath), /stale lock \(pid 999999999, refresh, since 1\): run djdb unlock --force/);
