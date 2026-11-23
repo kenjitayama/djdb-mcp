@@ -65,9 +65,12 @@ const cases = [
   ['rec_event kinds are impression and queued only', ONLINE,
     `INSERT INTO rec_event (run_id, rank, kind, at) VALUES (1,1,'qualified_listen',1)`,
     `INSERT INTO rec_event (run_id, rank, kind, at) VALUES (1,1,'queued',1)`],
-  ['a playable row is resolved by cache or client', ONLINE,
-    `INSERT INTO rec_item_playable (run_id, rank, provider, ext_id, market, resolved_by, resolved_at) VALUES (1,1,'spotify','xyz','JP','labs',1)`,
-    `INSERT INTO rec_item_playable (run_id, rank, provider, ext_id, market, resolved_by, resolved_at) VALUES (1,1,'spotify','xyz','JP','client',1)`],
+  ['a play target is resolved by cache or client', ONLINE,
+    `UPDATE rec_item SET provider='spotify', ext_id='xyz', market='JP', resolved_by='labs', resolved_at=1 WHERE run_id=1 AND rank=1`,
+    `UPDATE rec_item SET provider='spotify', ext_id='xyz', market='JP', resolved_by='client', resolved_at=1 WHERE run_id=1 AND rank=1`],
+  ['a play target is all or nothing', ONLINE,
+    `UPDATE rec_item SET ext_id='xyz' WHERE run_id=1 AND rank=1`,
+    `UPDATE rec_item SET provider='spotify', ext_id='xyz', market='JP', resolved_by='cache', resolved_at=1 WHERE run_id=1 AND rank=1`],
 ];
 
 for (const [label, which, bad, good] of cases) {

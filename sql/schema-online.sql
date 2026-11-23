@@ -69,22 +69,18 @@ CREATE TABLE rec_item (
   title_norm       TEXT NOT NULL,
   score            REAL NOT NULL,
   components_json  TEXT,
+  -- Where it can be played: from the ID cache at recommend time, or the first ID dj-mcp reports for this run.
+  provider         TEXT,
+  ext_id           TEXT CHECK (instr(ext_id, ':') = 0 AND instr(ext_id, '/') = 0),
+  play_uri         TEXT,
+  market           TEXT,
+  resolved_by      TEXT CHECK (resolved_by IN ('cache','client')),
+  resolved_at      INTEGER,
+  CHECK ((ext_id IS NULL) = (provider IS NULL) AND (ext_id IS NULL) = (market IS NULL)
+     AND (ext_id IS NULL) = (resolved_by IS NULL) AND (ext_id IS NULL) = (resolved_at IS NULL)),
   PRIMARY KEY (run_id, rank)
 ) STRICT;
 CREATE INDEX rec_item_track ON rec_item(track_id);
-
-CREATE TABLE rec_item_playable (
-  run_id      INTEGER NOT NULL,
-  rank        INTEGER NOT NULL,
-  provider    TEXT NOT NULL,
-  ext_id      TEXT NOT NULL CHECK (instr(ext_id, ':') = 0 AND instr(ext_id, '/') = 0),
-  play_uri    TEXT,
-  market      TEXT NOT NULL,
-  resolved_by TEXT NOT NULL CHECK (resolved_by IN ('cache','client')),
-  resolved_at INTEGER NOT NULL,
-  PRIMARY KEY (run_id, rank, provider),
-  FOREIGN KEY (run_id, rank) REFERENCES rec_item(run_id, rank)
-) STRICT;
 
 -- Exposures only for now; attribution is derived later from these rows plus LB plays.
 CREATE TABLE rec_event (

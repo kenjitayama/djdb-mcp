@@ -7,7 +7,7 @@ import { recordExternalIds, explain } from '../lib/online.mjs';
 
 const opts = { mode: 'discover', n: 5, record: true, cutoffAt: 2_000_000_000 };
 const playableOf = (online, runId) => online.prepare(
-  `SELECT rank, provider, ext_id, play_uri, market, resolved_by, resolved_at FROM rec_item_playable WHERE run_id=? ORDER BY rank`,
+  `SELECT rank, provider, ext_id, play_uri, market, resolved_by, resolved_at FROM rec_item WHERE run_id=? AND ext_id IS NOT NULL ORDER BY rank`,
 ).all(runId).map((r) => ({ ...r }));
 
 test('a reported Spotify ID is stored for the run and served from the cache next time', async () => {
@@ -39,6 +39,8 @@ test('a reported Spotify ID is stored for the run and served from the cache next
     const ex = explain(handle.online, second.run_id);
     assert.equal(ex.status, 'ok');
     assert.equal(ex.items.length, second.items.length);
+    const exKnown = ex.items.find((i) => i.rank === k2.rank);
+    assert.deepEqual([exKnown.ext_id, exKnown.resolved_by], ['sp1', 'cache']);
   } finally {
     handle.close();
   }
