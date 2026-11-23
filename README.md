@@ -8,7 +8,7 @@ Three entry points, zero runtime dependencies (`node:sqlite` and `fetch` only). 
 - **CLI** (`bin/djdb`) — `init`, `refresh`, `status`, and the other maintenance commands.
 - **MCP server** (`bin/djdb-mcp-server`) — a standalone, read-oriented server for lookups. It returns recording MBIDs and ISRCs only (it has no Spotify credentials) and opens the run log (`djdb-online.sqlite`, called the online DB in the code and CLI) read-only, so it never records recommendation runs. The run log is a local SQLite file next to the main DB. It records recommendation runs, the playback IDs found per market, and which tracks were shown or queued.
 
-dj-mcp remains the user-facing playback client. If this package is not installed, dj-mcp behaves exactly as it does today.
+dj-mcp remains the user-facing playback client. It works without this package; it just doesn't offer `recommend`.
 
 ## Purpose
 
@@ -63,7 +63,7 @@ Commands:
 |---|---|
 | `djdb init` | Create the databases and bind them to one ListenBrainz account. Token from `LISTENBRAINZ_TOKEN` or the token file. |
 | `djdb refresh` | Lock, sync, match, build the graph and popularity. This is the usual way data changes. First sync: `--export <dir>`. Later syncs use `/listens` deltas. `--listens-full-history` pages the whole history only when an export is unavailable. |
-| `djdb status` | Lock (reported only: a running refresh does not stop recommend), last refresh and whether it was incomplete (暫定), library counts. `--json` available. |
+| `djdb status` | Lock (reported only: a running refresh does not stop recommend), last refresh and whether it was incomplete (marked provisional; `provisional: true` in `--json`), library counts. `--json` available. |
 | `djdb account-rename <name>` | After a ListenBrainz username change. The token must belong to `<name>`. |
 | `djdb unlock` | Delete `djdb.lock` if the process that holds it is gone. A running holder keeps it (exit 1). |
 | `djdb online-reset --yes` | Empty the run log in place. Without `--yes` nothing changes. Restart running dj-mcp processes afterwards. |
@@ -88,7 +88,7 @@ No command prompts. `--db <path>` overrides the main database path. `djdb refres
 
 1. Create a ListenBrainz user token on listenbrainz.org.
 2. `LISTENBRAINZ_TOKEN=YOUR_LISTENBRAINZ_TOKEN node <path>/bin/djdb init`. Init checks the token with ListenBrainz and saves it to the token file (mode `0600`), so later commands do not need the variable. Init refuses to run over an existing database, and a failed init leaves no database behind.
-3. Import your history into ListenBrainz first (Last.fm import, then a Spotify export for gaps). This tool only *reads* ListenBrainz. Then request a listens export on ListenBrainz, download the ZIP, and extract it.
+3. Import your past listening history into ListenBrainz first (for example from Last.fm or a Spotify data export) so there is enough data. This tool only *reads* ListenBrainz. Then request a listens export on ListenBrainz, download the ZIP, and extract it.
 4. `node <path>/bin/djdb refresh --export <extracted-export-dir>`
 5. Later refreshes are incremental (`/listens` with `min_ts` and a one-hour overlap). `node <path>/bin/djdb status`
 
@@ -156,7 +156,7 @@ Under one lock file (`djdb.lock`, deleted only by its creator):
 5. `popularity`: ListenBrainz artist popularity and top recordings for played artists and the 300 catalog artists most strongly linked from them. The first 10 top recordings of each are cached and added as tracks, which is where discover finds recordings you have not heard.
 6. Write `refreshed_at` and `refresh_note`.
 
-`graph` and `popularity` commit each ListenBrainz response to `fetch_cache` as it arrives, then rebuild their tables from the cache in one transaction. A request that fails keeps the old cached response. A 2xx whose body is not JSON, or not the shape of that endpoint, is a failed request (`lb_bad_response`) and nothing is written from it. Each stage commits, and readers read the main DB inside one read transaction, so `recommend()` always sees a committed state. A failed stage stops the run and leaves earlier stages in place. A stage with failed requests finishes as `partial`. Either way `status()` labels the library 暫定 (provisional) until a complete refresh.
+`graph` and `popularity` commit each ListenBrainz response to `fetch_cache` as it arrives, then rebuild their tables from the cache in one transaction. A request that fails keeps the old cached response. A 2xx whose body is not JSON, or not the shape of that endpoint, is a failed request (`lb_bad_response`) and nothing is written from it. Each stage commits, and readers read the main DB inside one read transaction, so `recommend()` always sees a committed state. A failed stage stops the run and leaves earlier stages in place. A stage with failed requests finishes as `partial`. Either way `status()` marks the library provisional until a complete refresh.
 
 ## Recommend modes
 
@@ -165,9 +165,9 @@ Under one lock file (`djdb.lock`, deleted only by its creator):
 
 Both modes count only plays and love/hate feedback from before `cutoffAt` (default: now), and recommend one recording per artist.
 
-## Algorithm parameters (暫定 / provisional)
+## Algorithm parameters (provisional)
 
-`recommend()` uses `DEFAULT_PARAMS` in `lib/recommend.mjs`. These values are **暫定 / provisional** and will be tuned after evaluation. The design fixes some of them (α in 0.3–0.5, top 3 recordings, 180-day era gap, 30-day overlay and miss window); the rest (`beta`, `rho`, `kappa`, `T`, heavy `q`/`m`, and so on) are starting points, not finals. Current starting values: `alpha=0.4`, `beta=0.5`, `rho=0.6`, `kappa=10`, `T=365 days`, `q=20`, `m=3`.
+`recommend()` uses `DEFAULT_PARAMS` in `lib/recommend.mjs`. These values are **provisional** and will be tuned after evaluation. The design fixes some of them (α in 0.3–0.5, top 3 recordings, 180-day era gap, 30-day overlay and miss window); the rest (`beta`, `rho`, `kappa`, `T`, heavy `q`/`m`, and so on) are starting points, not finals. Current starting values: `alpha=0.4`, `beta=0.5`, `rho=0.6`, `kappa=10`, `T=365 days`, `q=20`, `m=3`.
 
 Listens without a ListenBrainz `recording_msid` use `source_key = lb:<listened_at>|nomssid:<hex>`, where `<hex>` is the first 32 hex characters of SHA-256 over `<listened_at>|<normalizeArtist(artist)>|<normalizeTitle(track)>|<normalizeTitle(release)>`.
 
