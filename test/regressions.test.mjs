@@ -6,49 +6,15 @@ import { existsSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import * as H from './helpers.mjs';
-import { fakeClient, topRecording } from './lb-fake.mjs';
+import { fakeClient } from './lb-fake.mjs';
+import { library, withArtistMbid, ARTIST_M, ARTIST_C, REC_KNOWN, REC_UNKNOWN } from './library.mjs';
 import { ingestListens, syncListens } from '../lib/sync.mjs';
 import { matchPlays, dedupPlays } from '../lib/match.mjs';
-import { refresh } from '../lib/refresh.mjs';
 import { recommend } from '../lib/recommend.mjs';
 import { setMeta } from '../lib/db.mjs';
 import { initDb } from '../lib/init.mjs';
 import { createCore } from '../lib/mcp-core.mjs';
 import { runCli } from '../lib/cli.mjs';
-
-const ARTIST_M = '11111111-1111-4111-8111-111111111111';
-const ARTIST_C = '33333333-3333-4333-8333-333333333333';
-const REC_KNOWN = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
-const REC_UNKNOWN = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
-const DAY = 86400;
-
-const withArtistMbid = (l, mbid) => { l.track_metadata.additional_info.artist_mbids = [mbid]; return l; };
-
-// Heavy artist M (40 days of plays) and light artist C (one play of REC_KNOWN).
-// C's top recordings on LB are REC_KNOWN (played) and REC_UNKNOWN (never played, not in the library).
-async function library({ feedback = [], extraListens = [] } = {}) {
-  const listens = [];
-  for (let i = 0; i < 40; i++) {
-    listens.push(withArtistMbid(H.listen({ at: 1_700_000_000 + i * DAY, msid: `m${i}`, artist: 'Heavy', title: `H${i % 3}` }), ARTIST_M));
-  }
-  listens.push(withArtistMbid(H.listen({ at: 1_700_000_000 + 41 * DAY, msid: 'c1', artist: 'Light', title: 'Known', mapped: REC_KNOWN }), ARTIST_C));
-  listens.push(...extraListens);
-  const client = fakeClient({
-    listens,
-    feedback,
-    similar: { [ARTIST_M]: [{ artist_mbid: ARTIST_C, name: 'Light', score: 1 }] },
-    tops: {
-      [ARTIST_C]: [
-        topRecording({ artistMbid: ARTIST_C, artist: 'Light', mbid: REC_KNOWN, title: 'Known', listens: 900 }),
-        topRecording({ artistMbid: ARTIST_C, artist: 'Light', mbid: REC_UNKNOWN, title: 'Unknown', listens: 800 }),
-      ],
-    },
-  });
-  const db = await H.freshDb({ client });
-  const r = await refresh(db.handle, { client, skipTokenCheck: true, listensFullHistory: true });
-  assert.equal(r.ok, true, JSON.stringify(r.results));
-  return db;
-}
 
 const mbids = (r) => (r.items || []).map((i) => i.recording_mbid);
 
@@ -175,7 +141,7 @@ test('#4 a seed with both a name and a Spotify URI resolves by name', { todo: 'J
   assert.deepEqual(r.unresolved, []);
 });
 
-test('#9 the MCP server reads without writing: a missing online DB is not created', { todo: 'J6, J8' }, async () => {
+test('#9 the MCP server reads without writing: a missing online DB is not created', async () => {
   const { handle, dbPath, configDir, paths } = await library();
   handle.close();
   for (const f of [paths.onlinePath, paths.onlinePath + '-wal', paths.onlinePath + '-shm']) rmSync(f, { force: true });

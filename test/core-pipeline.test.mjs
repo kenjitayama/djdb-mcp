@@ -120,7 +120,7 @@ test('init + refresh with fixture listens publishes a snapshot and recommend ret
     assert.equal(ev.ok, true);
     const stale = recordEvent(handle.online, 999999, 1, 'impression');
     assert.equal(stale.error, 'unknown_run');
-    const expl = explain(handle.online, handle.main, rec.run_id);
+    const expl = explain(handle.online, rec.run_id);
     assert.equal(expl.status, 'ok');
   } finally {
     handle.close();

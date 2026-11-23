@@ -111,7 +111,7 @@ Semver (0.x: minor versions may break) covers these functions and their return s
 import {
   API_VERSION,          // 1
   resolveDbPath,
-  open,
+  openReader,
   status,
   recommend,
   recordExternalIds,
@@ -122,9 +122,9 @@ import {
 
 - `recommend({ mode, n, provider, market, seeds, record })` — `mode` is `discover` or `rediscover`. Pass `record: false` for a dry run (used by the standalone MCP server). Seeds are `{ mbid }` or `{ name }`; Spotify artist URIs must be resolved to a name by dj-mcp first.
 - `recordEvent(online, runId, rank, kind)` — if `runId` is missing or unknown, nothing is written and `{ error: 'unknown_run' }` is returned (non-fatal for dj-mcp).
-- `explain(online, main, runId)` — `{ status: 'deleted' }` if the run's snapshot was cleaned up.
+- `explain(online, runId)` — the run's parameters and items.
 
-`open()` migrates the online DB (`BEGIN IMMEDIATE` → re-read `user_version` → migrate → bump → COMMIT) and, on an `id_epoch` mismatch, resets the online DB in place against the **live** main DB's epoch.
+`openReader({ online: 'write' })` opens the main DB read-only and migrates the online DB (`BEGIN IMMEDIATE` → re-read `user_version` → migrate → bump → COMMIT) and, on an `id_epoch` mismatch, resets the online DB in place against the **live** main DB's epoch.
 
 ## How refresh works
 

@@ -1,6 +1,6 @@
 ---
 name: djdb
-description: Inspect a personal ListenBrainz-backed music library and preview recommendations with the djdb-mcp tools — status, library stats, recommend (MBID/ISRC only), and explain. Use when asked what the local djdb library contains, whether a refresh is needed, or for a discover/rediscover preview. Writes (init, refresh, restore) go through the djdb CLI, not these tools.
+description: Inspect a personal ListenBrainz-backed music library and preview recommendations with the djdb-mcp tools — status (with library counts), recommend (MBID/ISRC only), and explain. Use when asked what the local djdb library contains, whether a refresh is needed, or for a discover/rediscover preview. Writes (init, refresh, restore) go through the djdb CLI, not these tools.
 ---
 
 # djdb-mcp (library + recommender)
@@ -28,7 +28,7 @@ It prints JSON with `--json`; on failure it exits 1 and prints `{"error":{code,m
 - Health / "is the library ready?" → `status` (or `djdb status --json`).
 - Counts of plays, artists, tracks → `status` (the `counts` field).
 - "Recommend something" / discover vs. rediscover → `recommend` with `mode` and optional `n`, `seeds`. The standalone server returns recording MBIDs and ISRCs only and does not record the run. Playback IDs are dj-mcp's job.
-- Explain a run that dj-mcp recorded → `explain { run_id }`. `status: "deleted"` means the snapshot was cleaned up.
+- Explain a run that dj-mcp recorded → `explain { run_id }`.
 
 ## Rules
 - Report only what the tools return. Don't invent listens, charts, or recommendations.
