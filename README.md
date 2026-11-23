@@ -1,6 +1,6 @@
 # @kenjitayama/djdb-mcp
 
-A personal ListenBrainz-backed music library and recommender. It stores plays, matching, an artist graph, and popularity in SQLite, and recommends recordings (MBID / ISRC) from a read-only snapshot.
+A personal ListenBrainz-backed music library and recommender. It stores plays, matching, an artist graph, and popularity in SQLite, and recommends recordings (MBID / ISRC) by reading the main DB read-only.
 
 Three entry points, zero runtime dependencies (`node:sqlite` and `fetch` only). Not affiliated with or endorsed by ListenBrainz or MetaBrainz.
 
@@ -53,11 +53,10 @@ Commands:
 | Command | What it does |
 |---|---|
 | `djdb init` | Create the databases and bind them to one ListenBrainz account. Token from `LISTENBRAINZ_TOKEN` or the token file. |
-| `djdb refresh` | Lock, sync, match, build the graph and popularity, then publish a snapshot. This is the usual way data changes. First sync: `--export <file>`. Later syncs use `/listens` deltas. `--listens-full-history` pages the whole history only when an export is unavailable. |
-| `djdb status` | Lock, dirty flag, latest snapshot, provisional snapshots, library counts. `--json` available. |
+| `djdb refresh` | Lock, sync, match, build the graph and popularity. This is the usual way data changes. First sync: `--export <file>`. Later syncs use `/listens` deltas. `--listens-full-history` pages the whole history only when an export is unavailable. |
+| `djdb status` | Lock, last refresh and whether it stopped early (暫定), library counts. `--json` available. |
 | `djdb account-rename <name>` | After a ListenBrainz username change. The token must belong to `<name>`. |
 | `djdb unlock` | Delete `djdb.lock` if the process that holds it is gone. A running holder keeps it (exit 1). |
-| `djdb snapshot-pin <id> <label>` | Pin a verified snapshot (for later evaluation). |
 | `djdb online-reset --yes` | Empty the online DB in place. Without `--yes` nothing changes. Restart running dj-mcp processes afterwards. |
 
 No command prompts. `--db <path>` overrides the main database path. `djdb refresh --export <file>` passes a ListenBrainz export (extracted JSON). `--listens-full-history` is the explicit opt-in to page the entire history through `GET /1/user/{user}/listens` when no export is available.
@@ -65,7 +64,7 @@ No command prompts. `--db <path>` overrides the main database path. `djdb refres
 ### Where files live
 
 - Main DB path: `DJDB_PATH` → `~/.config/djdb-mcp/config.json` `dbPath` → `${XDG_DATA_HOME:-~/.local/share}/djdb-mcp/djdb.sqlite`
-- Online DB `djdb-online.sqlite` and `snapshots/` sit next to the main DB.
+- Online DB `djdb-online.sqlite` and `djdb.lock` sit next to the main DB.
 - ListenBrainz token file: `~/.config/djdb-mcp/lb-token.json` (mode `0600`). Never commit this file. Example only (placeholder values, never a real token):
 
 ```json
@@ -129,14 +128,14 @@ import {
 
 Under one lock file (`djdb.lock`, deleted only by its creator):
 
-1. Migrate the main DB, delete leftovers, verify snapshots (file, SHA-256, `quick_check`).
+1. Check the schema version. A djdb 0.1 database (schema v1) is refused with `schema_too_old`: move the data directory aside and rebuild with `djdb init` and `djdb refresh --export <file>`.
 2. `lb-sync` — first run imports a ListenBrainz export (`--export`); later runs fetch only new listens from `GET /1/user/{user}/listens` with `min_ts` set a small overlap before the last fetched `listened_at`. `UNIQUE(source_key)` absorbs the overlap. Paging the whole history through `/listens` happens only with `--listens-full-history`. Love/hate feedback is also pulled here.
 3. `match` — recordings in this order: MBID → ISRC → normalized name. Then a 60-second cross-via dedup safety net. `lb_feedback.track_id` is re-attached via MBID at the end of this stage.
 4. `graph` — ListenBrainz similar-artists, stored as `lb:similar-artists:<algorithm>`.
-5. `popularity` — ListenBrainz artist popularity and top recordings (cached in the snapshot).
-6. If anything changed, or no valid snapshot remains, `VACUUM INTO` a new snapshot, `journal_mode=DELETE`, verify, then register it and clear `dirty` in one commit.
+5. `popularity` — ListenBrainz artist popularity and top recordings (cached in `fetch_cache`).
+6. Write `refreshed_at` and `refresh_note`.
 
-A stage failure when no valid snapshot remains still takes one snapshot from the batch-consistent main DB and `status()` labels it 暫定 (provisional).
+Each stage commits in batches, and readers read the main DB inside one read transaction, so `recommend()` always sees a committed state. A failed stage stops the run and leaves earlier stages in place. `status()` then labels the library 暫定 (provisional) until a refresh succeeds.
 
 ## Algorithm parameters (暫定 / provisional)
 

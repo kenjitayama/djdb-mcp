@@ -83,7 +83,7 @@ export async function freshDb(opts = {}) {
   const tokenFile = join(configDir, 'lb-token.json');
   const client = opts.client || mockClient({ user: opts.user || 'tester' });
   const info = await initDb(
-    { dbPath, dbDir: root, onlinePath: join(root, 'djdb-online.sqlite'), snapsDir: join(root, 'snapshots'), lockPath: join(root, 'djdb.lock'), tokenFile, configDir },
+    { dbPath, dbDir: root, onlinePath: join(root, 'djdb-online.sqlite'), lockPath: join(root, 'djdb.lock'), tokenFile, configDir },
     { client, skipTokenCheck: !opts.liveToken, token: opts.token || 'test-token', user: opts.user || 'tester' },
   );
   const handle = open({ dbPath, configDir, tokenFile });

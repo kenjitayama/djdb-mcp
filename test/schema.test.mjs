@@ -21,8 +21,7 @@ function fresh() {
       VALUES (101, 'lb:1010|m2', 'spotify', 1, 'lb:spotify', 1, 1010, 'A', 'T', 100);
   `);
   online.exec(`
-    INSERT INTO rec_run (id, created_at, snapshot_id, snapshot_sha256, mode, algo_version, params_hash, params_json)
-      VALUES (1, 1, 1, '${'a'.repeat(64)}', 'discover', 'v11', 'h', '{}');
+    INSERT INTO rec_run (id, created_at, mode, algo_version, params_hash, params_json) VALUES (1, 1, 'discover', 'v11', 'h', '{}');
     INSERT INTO rec_item (run_id, rank, artist_id, track_id, title_norm, score) VALUES (1, 1, 1, 12, 'u', 0.5);
   `);
   return { main, online };
@@ -57,12 +56,6 @@ const cases = [
   ['a track does not merge into itself', MAIN,
     `UPDATE track SET merged_into=10 WHERE id=10`,
     `UPDATE track SET merged_into=10 WHERE id=12`],
-  ['a pinned snapshot needs a label', MAIN,
-    `INSERT INTO snapshot (created_at, path, sha256, user_version, pinned) VALUES (1,'s.db','${'a'.repeat(64)}',1,1)`,
-    `INSERT INTO snapshot (created_at, path, sha256, user_version, pinned, label) VALUES (1,'s.db','${'a'.repeat(64)}',1,1,'eval')`],
-  ['a snapshot path stays under snapshots/', MAIN,
-    `INSERT INTO snapshot (created_at, path, sha256, user_version) VALUES (1,'/x.db','${'a'.repeat(64)}',1)`,
-    `INSERT INTO snapshot (created_at, path, sha256, user_version) VALUES (1,'x.db','${'a'.repeat(64)}',1)`],
   ['ext_id is a bare ID, not a URI', ONLINE,
     `INSERT INTO track_external_id (track_id, recording_mbid, title_norm, provider, ext_id, market, method) VALUES (12,'m12','u','spotify','spotify:track:q','JP','x')`,
     `INSERT INTO track_external_id (track_id, recording_mbid, title_norm, provider, ext_id, market, method) VALUES (12,'m12','u','spotify','q','JP','x')`],
@@ -78,9 +71,6 @@ const cases = [
   ['a playable row is resolved by cache or client', ONLINE,
     `INSERT INTO rec_item_playable (run_id, rank, provider, ext_id, market, resolved_by, resolved_at) VALUES (1,1,'spotify','xyz','JP','labs',1)`,
     `INSERT INTO rec_item_playable (run_id, rank, provider, ext_id, market, resolved_by, resolved_at) VALUES (1,1,'spotify','xyz','JP','client',1)`],
-  ['rec_run snapshot_sha256 is 64 hex characters', ONLINE,
-    `INSERT INTO rec_run (created_at, snapshot_id, snapshot_sha256, mode, algo_version, params_hash, params_json) VALUES (1,1,'abc','discover','v11','h','{}')`,
-    `INSERT INTO rec_run (created_at, snapshot_id, snapshot_sha256, mode, algo_version, params_hash, params_json) VALUES (1,1,'${'b'.repeat(64)}','discover','v11','h','{}')`],
 ];
 
 for (const [label, which, bad, good] of cases) {
@@ -104,7 +94,7 @@ test('both schemas carry the library user_version and pass integrity and foreign
 test('the main DB holds no feedback-writing, ID cache, or log tables', () => {
   const { main } = fresh();
   const names = main.prepare(`SELECT name FROM sqlite_master WHERE type='table'`).all().map((r) => r.name);
-  for (const t of ['feedback', 'track_external_id', 'track_resolve_miss', 'rec_run', 'rec_item', 'rec_event', 'artist_external_id', 'generation', 'job_lock']) {
+  for (const t of ['feedback', 'track_external_id', 'track_resolve_miss', 'rec_run', 'rec_item', 'rec_event', 'artist_external_id', 'generation', 'job_lock', 'snapshot']) {
     assert.ok(!names.includes(t), t);
   }
 });

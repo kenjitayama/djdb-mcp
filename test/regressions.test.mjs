@@ -79,7 +79,6 @@ test('#10 an init that fails midway leaves no database behind and can be rerun',
     dbPath: join(root, 'djdb.sqlite'),
     dbDir: root,
     onlinePath: join(root, 'djdb-online.sqlite'),
-    snapsDir: join(root, 'snapshots'),
     lockPath: join(root, 'djdb.lock'),
     configDir: root,
   };

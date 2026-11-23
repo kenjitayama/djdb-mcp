@@ -1,5 +1,5 @@
 -- Online DB (djdb-online.sqlite, next to the main DB). Written only by the online path inside dj-mcp:
--- recommend(), recordEvent(), recordExternalIds(). Never written by refresh and never snapshotted.
+-- recommend(), recordEvent(), recordExternalIds(). Never written by refresh.
 -- track_id / artist_id are main-DB ids; readers follow main-DB merged_into before using them.
 PRAGMA foreign_keys = ON;
 
@@ -12,7 +12,7 @@ CREATE TABLE meta (
   value TEXT NOT NULL
 ) STRICT, WITHOUT ROWID;
 
--- Spotify ID cache. Reused only if the snapshot's track still matches: recording_mbid equal, or (mbid NULL)
+-- Spotify ID cache. Reused only if the main DB's track still matches: recording_mbid equal, or (mbid NULL)
 -- isrc among the track's ISRCs AND title_norm equal. Otherwise ignored and searched again.
 CREATE TABLE track_external_id (
   track_id       INTEGER NOT NULL,
@@ -46,17 +46,14 @@ CREATE TABLE track_resolve_miss (
   CHECK (recording_mbid IS NOT NULL OR isrc IS NOT NULL)
 ) STRICT, WITHOUT ROWID;
 
--- Online runs only (eval results go to eval/*.json). fetched_json is unused.
+-- Online runs only.
 CREATE TABLE rec_run (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,  -- resets never clear sqlite_sequence: run ids are never reused
   created_at      INTEGER NOT NULL,
-  snapshot_id     INTEGER NOT NULL,
-  snapshot_sha256 TEXT NOT NULL CHECK (length(snapshot_sha256) = 64),
   mode            TEXT NOT NULL CHECK (mode IN ('discover','rediscover')),
   algo_version    TEXT NOT NULL,
   params_hash     TEXT NOT NULL,
-  params_json     TEXT NOT NULL,
-  fetched_json    TEXT
+  params_json     TEXT NOT NULL
 ) STRICT;
 CREATE INDEX rec_run_time ON rec_run(created_at);
 
@@ -66,7 +63,7 @@ CREATE TABLE rec_item (
   pre_rank         INTEGER,
   candidate_source TEXT,
   artist_id        INTEGER NOT NULL,
-  track_id         INTEGER NOT NULL,  -- canonical in this run's snapshot
+  track_id         INTEGER NOT NULL,
   recording_mbid   TEXT,
   isrc             TEXT,
   title_norm       TEXT NOT NULL,
@@ -101,4 +98,4 @@ CREATE TABLE rec_event (
 ) STRICT;
 CREATE INDEX rec_event_item ON rec_event(run_id, rank, at);
 
-PRAGMA user_version = 1;
+PRAGMA user_version = 2;

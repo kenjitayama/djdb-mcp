@@ -8,7 +8,6 @@ import { ingestListens, pullFeedback } from '../lib/sync.mjs';
 import { matchPlays, dedupPlays, setCanonical } from '../lib/match.mjs';
 import { recordExternalIds, recordEvent, explain, onlineReset, epochCheck } from '../lib/online.mjs';
 import { API_VERSION, open, LIB_USER_VERSION } from '../lib/index.mjs';
-import { getMeta, setMeta } from '../lib/db.mjs';
 import { normalizeArtist, normalizeTitle, NORM_VERSION } from '../lib/normalize.mjs';
 import { canon } from '../lib/canon.mjs';
 
@@ -56,10 +55,10 @@ function clientFor(listens) {
   });
 }
 
-test('API_VERSION is 1 and NORM_VERSION is 1', () => {
+test('API_VERSION is 1, NORM_VERSION is 1, schema is v2', () => {
   assert.equal(API_VERSION, 1);
   assert.equal(NORM_VERSION, 1);
-  assert.equal(LIB_USER_VERSION.max, 1);
+  assert.deepEqual(LIB_USER_VERSION, { min: 2, max: 2 });
   assert.equal(normalizeArtist('The Beatles'), 'beatles');
   assert.equal(normalizeTitle('Song (Live!)'), 'song live');
   assert.equal(normalizeArtist('牧野由依'), '牧野由依');
@@ -67,7 +66,7 @@ test('API_VERSION is 1 and NORM_VERSION is 1', () => {
   assert.equal(normalizeArtist('The 牧野由依'), '牧野由依');
 });
 
-test('init + refresh with fixture listens publishes a snapshot and recommend returns items', async () => {
+test('init + refresh with fixture listens, then recommend returns items', async () => {
   const listens = baseListens();
   const client = clientFor(listens);
   const { handle, paths } = await freshDb({ client });
@@ -75,7 +74,6 @@ test('init + refresh with fixture listens publishes a snapshot and recommend ret
     // stamp artist MBIDs after a first match so graph/popularity have something to fetch
     const r1 = await refresh(handle, { client, skipTokenCheck: true, listensFullHistory: true });
     assert.equal(r1.ok, true);
-    assert.equal(r1.published, true);
     const nPlay = handle.main.prepare(`SELECT count(*) AS n FROM play`).get().n;
     assert.equal(nPlay, 7);
     const dups = handle.main.prepare(`SELECT count(*) AS n FROM play WHERE canonical_play_id IS NOT NULL`).get().n;
@@ -88,7 +86,6 @@ test('init + refresh with fixture listens publishes a snapshot and recommend ret
     }
     client.similar[A_MBID] = [{ artist_mbid: B_MBID, score: 0.8 }];
     client.similar[B_MBID] = [{ artist_mbid: A_MBID, score: 0.8 }];
-    handle.main.prepare(`UPDATE meta SET value='1' WHERE key='dirty'`).run();
     const r2 = await refresh(handle, { client, skipTokenCheck: true, listensFullHistory: true });
     assert.equal(r2.ok, true);
     const edges = handle.main.prepare(`SELECT count(*) AS n FROM edge`).get().n;
@@ -96,7 +93,7 @@ test('init + refresh with fixture listens publishes a snapshot and recommend ret
     const st = status(handle);
     assert.equal(st.ok, true);
     assert.equal(st.reason, 'ok');
-    assert.ok(st.snapshot?.id);
+    assert.ok(st.refreshed_at > 0);
     assert.equal(st.provisional, false);
 
     const rec = await recommend(handle, { mode: 'discover', n: 5, record: true, client });
@@ -146,17 +143,14 @@ test('recommend makes no network calls, even when it records a run', async () =>
   }
 });
 
-test('identical re-fetch does not set dirty; crashed mid-batch leaves neither row nor dirty', async () => {
+test('an identical re-fetch inserts nothing', async () => {
   const { handle } = await freshDb();
   try {
     const l = [listen({ at: 1000, msid: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', artist: 'A', title: 'T', via: 'lastfm' })];
     const a = ingestListens(handle.main, l);
     assert.equal(a.inserted, 1);
-    assert.equal(getMeta(handle.main, 'dirty'), '1');
-    setMeta(handle.main, 'dirty', '0');
     const b = ingestListens(handle.main, l);
     assert.equal(b.inserted, 0);
-    assert.equal(getMeta(handle.main, 'dirty'), '0');
   } finally {
     handle.close();
   }
@@ -169,10 +163,8 @@ test('feedback pull is all-or-nothing; score 0 is not stored', async () => {
     const r = pullFeedback(handle.main, pages, { nowSec: 50 });
     assert.equal(r.ok, true);
     assert.equal(r.changed, 1);
-    setMeta(handle.main, 'dirty', '0');
     const r2 = pullFeedback(handle.main, pages, { nowSec: 50 });
     assert.equal(r2.changed, 0);
-    assert.equal(getMeta(handle.main, 'dirty'), '0');
     const r3 = pullFeedback(handle.main, [pages[0], new Error('503')]);
     assert.equal(r3.ok, false);
     assert.equal(handle.main.prepare(`SELECT count(*) AS n FROM lb_feedback`).get().n, 1);
@@ -181,17 +173,18 @@ test('feedback pull is all-or-nothing; score 0 is not stored', async () => {
   }
 });
 
-test('fallback snapshot after a failed stage when none is valid is marked provisional', async () => {
+test('a refresh that fails at lb-sync is recorded, and status marks it 暫定', async () => {
   const { handle } = await freshDb({ client: mockClient({ fail: 'listens' }) });
   try {
-    // no snapshot yet, lb-sync will fail
-    const r = await refresh(handle, { client: mockClient({ fail: 'listens' }), skipTokenCheck: true, listensFullHistory: true });
-    assert.equal(r.fallbackSnapshot, true);
-    assert.equal(r.provisional, true);
-    assert.equal(getMeta(handle.main, 'dirty'), '1');
+    assert.match(status(handle).reason, /never refreshed/);
+    const r = await refresh(handle, { client: mockClient({ fail: 'listens' }), skipTokenCheck: true, listensFullHistory: true, nowSec: 5000 });
+    assert.equal(r.ok, false);
+    assert.equal(r.failed, 'lb-sync');
     const st = status(handle);
+    assert.equal(st.ok, true);
+    assert.equal(st.refreshed_at, 5000);
     assert.equal(st.provisional, true);
-    assert.match(st.provisional_note, /暫定/);
+    assert.match(st.provisional_note, /暫定.*lb-sync/);
   } finally {
     handle.close();
   }
@@ -222,11 +215,11 @@ test('name seed that hits several aliases is ambiguous', async () => {
     handle.main.exec(`INSERT INTO artist (name) VALUES ('A'),('B')`);
     handle.main.exec(`INSERT INTO artist_alias (alias_norm, artist_id, source, norm_version) VALUES ('the a',1,'lb',1),('the a',2,'lb',1)`);
     const rec = await recommend(handle, { mode: 'discover', n: 1, record: false, seeds: [{ name: 'The A' }] });
-    // no snapshot yet
+    // never refreshed
     if (rec.unresolved) {
       assert.ok(rec.unresolved.some((u) => u.reason === 'ambiguous') || rec.reason);
     } else {
-      assert.ok(rec.reason, 'expected a reason when there is no snapshot');
+      assert.ok(rec.reason, 'expected a reason when the library is empty');
     }
   } finally {
     handle.close();

@@ -38,17 +38,19 @@ test('CLI init, status, refresh, unlock, online-reset', async () => {
   assert.equal(await runCli(['init', '--user', 'tester'], common), 0);
   assert.equal(existsSync(dbPath), true);
   assert.deepEqual(Object.keys(JSON.parse(readFileSync(join(cfg, 'lb-token.json'), 'utf8'))), ['token']);
-  assert.equal(await runCli(['status', '--json'], common), 1); // no snapshot yet
+  assert.equal(await runCli(['status', '--json'], common), 1); // never refreshed
   assert.equal(await runCli(['refresh', '--listens-full-history'], common), 0);
   assert.equal(await runCli(['status', '--json'], common), 0);
   assert.equal(await runCli(['unlock'], common), 0);
   logs.length = 0;
   assert.equal(await runCli(['restore', 'backup.sqlite'], common), 1);
   assert.match(logs.at(-1), /unknown_command/);
+  assert.equal(await runCli(['snapshot-pin', '1', 'eval'], common), 1);
+  assert.match(logs.at(-1), /unknown_command/);
 
   const { DatabaseSync } = await import('node:sqlite');
   const online = new DatabaseSync(join(dir, 'djdb-online.sqlite'));
-  online.exec(`INSERT INTO rec_run (created_at, snapshot_id, snapshot_sha256, mode, algo_version, params_hash, params_json) VALUES (1, 1, '${'a'.repeat(64)}', 'discover', 'v11', 'h', '{}')`);
+  online.exec(`INSERT INTO rec_run (created_at, mode, algo_version, params_hash, params_json) VALUES (1, 'discover', 'v11', 'h', '{}')`);
   const runs = () => online.prepare('SELECT count(*) AS n FROM rec_run').get().n;
   logs.length = 0;
   assert.equal(await runCli(['online-reset'], common), 1);

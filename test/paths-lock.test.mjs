@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { resolveDbPath, resolveSnapshotPath, resolveConfigDir, tokenFilePath, pathsFromDb } from '../lib/paths.mjs';
+import { resolveDbPath, tokenFilePath } from '../lib/paths.mjs';
 import { withLockAsync, lockStatus, unlock } from '../lib/lock.mjs';
 
 test('resolveDbPath: option > env > config.json > default data dir', () => {
@@ -29,13 +29,6 @@ test('resolveDbPath: option > env > config.json > default data dir', () => {
     if (savedC === undefined) delete process.env.DJDB_CONFIG_DIR; else process.env.DJDB_CONFIG_DIR = savedC;
     if (savedX === undefined) delete process.env.XDG_DATA_HOME; else process.env.XDG_DATA_HOME = savedX;
   }
-});
-
-test('snapshot path must stay under snapshots/', () => {
-  const snaps = mkdtempSync(join(tmpdir(), 'djdb-snaps-'));
-  assert.equal(resolveSnapshotPath(snaps, 'snap-a.db'), join(snaps, 'snap-a.db'));
-  assert.throws(() => resolveSnapshotPath(snaps, '/tmp/x.db'));
-  assert.throws(() => resolveSnapshotPath(snaps, '../x.db'));
 });
 
 test('lock: only the creator deletes it; stale locks are not auto-recovered', async () => {

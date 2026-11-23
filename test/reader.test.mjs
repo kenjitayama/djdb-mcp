@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, rmSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { library } from './library.mjs';
-import { openReader } from '../lib/open.mjs';
+import { open, openReader } from '../lib/open.mjs';
 import { recommend } from '../lib/recommend.mjs';
 
 const preview = async (dbPath, configDir) => {
@@ -60,4 +60,24 @@ test("online: 'read' never creates the online DB; recording a run needs online: 
     w.close();
   }
   assert.equal(existsSync(paths.onlinePath), true);
+});
+
+test('a v1 database is refused with schema_too_old and a rebuild hint', async () => {
+  const { handle, dbPath, configDir, paths } = await library();
+  handle.close();
+  const online = new DatabaseSync(paths.onlinePath);
+  online.exec('PRAGMA user_version = 1');
+  online.close();
+  const r = openReader({ dbPath, configDir, online: 'read' });
+  try {
+    assert.equal(r.online, null, 'a v1 online DB is not read');
+  } finally {
+    r.close();
+  }
+  assert.throws(() => openReader({ dbPath, configDir, online: 'write' }), { code: 'schema_too_old' });
+  const main = new DatabaseSync(dbPath);
+  main.exec('PRAGMA user_version = 1');
+  main.close();
+  assert.throws(() => openReader({ dbPath, configDir, online: 'read' }), (e) => e.code === 'schema_too_old' && /djdb init/.test(e.hint));
+  assert.throws(() => open({ dbPath, configDir }), { code: 'schema_too_old' });
 });

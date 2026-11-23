@@ -14,7 +14,7 @@ const DAY = 86400;
 
 export const withArtistMbid = (l, mbid) => { l.track_metadata.additional_info.artist_mbids = [mbid]; return l; };
 
-export function libraryClient({ feedback = [], extraListens = [] } = {}) {
+export function libraryClient({ feedback = [], extraListens = [], fail } = {}) {
   const listens = [];
   for (let i = 0; i < 40; i++) {
     listens.push(withArtistMbid(H.listen({ at: 1_700_000_000 + i * DAY, msid: `m${i}`, artist: 'Heavy', title: `H${i % 3}` }), ARTIST_M));
@@ -24,6 +24,7 @@ export function libraryClient({ feedback = [], extraListens = [] } = {}) {
   return fakeClient({
     listens,
     feedback,
+    fail,
     similar: { [ARTIST_M]: [{ artist_mbid: ARTIST_C, name: 'Light', score: 1 }] },
     tops: {
       [ARTIST_C]: [

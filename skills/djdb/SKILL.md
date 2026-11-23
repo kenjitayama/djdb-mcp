@@ -5,7 +5,7 @@ description: Inspect a personal ListenBrainz-backed music library and preview re
 
 # djdb-mcp (library + recommender)
 
-The tools come from the `djdb-mcp` MCP server. Agents that can't load MCP servers can call the same read-oriented tools through status of the CLI, or recommend only after a snapshot exists. Maintenance uses the CLI:
+The tools come from the `djdb-mcp` MCP server. Agents that can't load MCP servers can use `djdb status --json` instead. Maintenance uses the CLI:
 
 `node <path-to-@kenjitayama/djdb-mcp>/bin/djdb <command>`
 
@@ -19,7 +19,8 @@ It prints JSON with `--json`; on failure it exits 1 and prints `{"error":{code,m
 
 ## Before anything
 - `no database`: the user must run `djdb init` (ListenBrainz token via `LISTENBRAINZ_TOKEN`) then `djdb refresh --export <listenbrainz-export.json>`. Later refreshes are incremental.
-- `no snapshot` / `schema changed`: run `djdb refresh`.
+- `never refreshed`: run `djdb refresh`. `schema_too_old`: the database is from djdb 0.1; follow the hint to rebuild.
+- 暫定 in `status`: the last refresh stopped early; results use the earlier stages. Run `djdb refresh` again later.
 - `stale lock`: show the pid and time from `djdb status`. `djdb unlock` removes it only if that pid is gone.
 - `main_db_key mismatch`: recommend is disabled; suggest `djdb online-reset --yes` once the user agrees.
 - Never print the ListenBrainz token. Never submit listens or feedback to ListenBrainz from this package.

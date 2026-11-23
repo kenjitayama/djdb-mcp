@@ -1,8 +1,9 @@
 PRAGMA foreign_keys = ON;
 
 -- Main DB: written ONLY by `djdb refresh` (plus `djdb init` / `djdb account-rename`, which touch meta only).
+-- Readers open it read-only and read inside one transaction.
 -- meta keys: lb_account_key (local, never changes), id_epoch (new UUID on init), lb_user,
--- dirty (0/1, set in the same transaction as each refresh batch that changed rows), lb_feedback_synced_at
+-- lb_feedback_synced_at, lb_listens_synced_max_ts, refreshed_at, refresh_note
 -- artist / track rows are never deleted, only merged; AUTOINCREMENT so an id is never reused.
 CREATE TABLE meta (
   key   TEXT PRIMARY KEY,
@@ -168,19 +169,4 @@ CREATE TABLE fetch_cache (
   PRIMARY KEY (endpoint, key)
 ) STRICT, WITHOUT ROWID;
 
--- Latest = ORDER BY id DESC (created_at is for display only). Only `djdb refresh` creates snapshots: VACUUM INTO a unique path, verify, then INSERT this row + dirty=0 in one commit.
--- The file is set to journal_mode=DELETE before hashing; readers open it read-only with immutable=1 (no -wal/-shm).
--- refresh start checks rows newest-first (file, sha256, quick_check): corrupt unpinned rows are deleted, corrupt pinned
--- rows are reported. Files in snapshots/ without a row are deleted at the next refresh start.
-CREATE TABLE snapshot (
-  id           INTEGER PRIMARY KEY,
-  created_at   INTEGER NOT NULL,
-  path         TEXT NOT NULL UNIQUE CHECK (substr(path, 1, 1) <> '/' AND instr(path, '..') = 0),
-  sha256       TEXT NOT NULL CHECK (length(sha256) = 64),
-  user_version INTEGER NOT NULL CHECK (user_version > 0),
-  pinned       INTEGER NOT NULL DEFAULT 0 CHECK (pinned IN (0, 1)),
-  label        TEXT,
-  CHECK (pinned = 0 OR label IS NOT NULL)
-) STRICT;
-
-PRAGMA user_version = 1;
+PRAGMA user_version = 2;

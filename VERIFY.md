@@ -22,13 +22,14 @@
 - Later syncs call `/listens` with `min_ts = last_listened_at - 3600` (overlap). `UNIQUE(source_key)` absorbs duplicates. They do not page the whole history.
 - Live ListenBrainz verification is still pending; tests use fixtures and mocks only.
 
-## Refresh / snapshots
+## Refresh / readers
 
 - Two overlapping refreshes: the second is refused and does not delete the first lock.
-- A crash mid-batch leaves neither the new rows nor `dirty=1`.
-- A crash after `VACUUM INTO` leaves an unregistered file that the next refresh deletes.
-- After a failed stage with no valid snapshot, one provisional snapshot is taken and `status` shows 暫定.
-- Readers open snapshots with `immutable=1` and do not create `-wal`/`-shm`.
+- A crash mid-batch leaves none of that batch's rows.
+- `recommend()` works on the committed state after every stage, and after a refresh that fails on an API outage.
+- After a failed stage `status` shows 暫定 until a refresh succeeds.
+- Readers open the main DB read-only. While refresh holds a write transaction they see the last committed state. Their handle cannot write.
+- A schema v1 (djdb 0.1) main or online DB is refused with `schema_too_old`.
 
 ## Online reset
 
