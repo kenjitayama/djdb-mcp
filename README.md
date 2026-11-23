@@ -53,7 +53,7 @@ Commands:
 | Command | What it does |
 |---|---|
 | `djdb init` | Create the databases and bind them to one ListenBrainz account. Token from `LISTENBRAINZ_TOKEN` or the token file. |
-| `djdb refresh` | Lock, sync, match, build the graph and popularity, then publish a snapshot. This is the usual way data changes. |
+| `djdb refresh` | Lock, sync, match, build the graph and popularity, then publish a snapshot. This is the usual way data changes. First sync: `--export <file>`. Later syncs use `/listens` deltas. `--listens-full-history` pages the whole history only when an export is unavailable. |
 | `djdb status` | Lock, dirty flag, latest snapshot, provisional snapshots, library counts. `--json` available. |
 | `djdb account-rename <name>` | After a ListenBrainz username change, and only with a matching token plus confirmation. |
 | `djdb unlock --force` | Show the lock holder and delete the lock after confirmation. |
@@ -61,21 +61,28 @@ Commands:
 | `djdb restore <file>` | Restore a backup in place (`backup()`, not a file rename). Then refresh to publish a new snapshot. |
 | `djdb online-reset` | Empty the online DB in place after confirmation. Restart running dj-mcp processes afterwards. |
 
-Add `--yes` to skip confirmation prompts in scripts. `--db <path>` overrides the main database path.
+Add `--yes` to skip confirmation prompts in scripts. `--db <path>` overrides the main database path. `djdb refresh --export <file>` passes a ListenBrainz export (extracted JSON). `--listens-full-history` is the explicit opt-in to page the entire history through `GET /1/user/{user}/listens` when no export is available.
 
 ### Where files live
 
 - Main DB path: `DJDB_PATH` → `~/.config/djdb-mcp/config.json` `dbPath` → `${XDG_DATA_HOME:-~/.local/share}/djdb-mcp/djdb.sqlite`
 - Online DB `djdb-online.sqlite` and `snapshots/` sit next to the main DB.
-- ListenBrainz token file: `~/.config/djdb-mcp/lb-token.json` (mode `0600`). It also stores the unchanging `lb_account_key`. Never commit this file. The path is not in the v11 design text; this is the implementation choice (see VERIFY.md).
+- ListenBrainz token file: `~/.config/djdb-mcp/lb-token.json` (mode `0600`). Never commit this file. Example only (placeholder values, never a real token):
+
+```json
+{
+  "token": "YOUR_LISTENBRAINZ_TOKEN",
+  "lb_account_key": "00000000-0000-0000-0000-000000000000"
+}
+```
 
 ### Init
 
 1. Create a ListenBrainz token on listenbrainz.org.
-2. `LISTENBRAINZ_TOKEN=… node <path>/bin/djdb init`
-3. Import your history into ListenBrainz first (Last.fm import, then a Spotify export for gaps). This tool only *reads* ListenBrainz.
-4. `node <path>/bin/djdb refresh`
-5. `node <path>/bin/djdb status`
+2. `LISTENBRAINZ_TOKEN=YOUR_LISTENBRAINZ_TOKEN node <path>/bin/djdb init`
+3. Import your history into ListenBrainz first (Last.fm import, then a Spotify export for gaps). This tool only *reads* ListenBrainz. Then download a ListenBrainz listens export and extract the JSON.
+4. `node <path>/bin/djdb refresh --export /path/to/listenbrainz-export.json`
+5. Later refreshes are incremental (`/listens` with `min_ts` and a small overlap). `node <path>/bin/djdb status`
 
 ## MCP server
 
@@ -123,13 +130,19 @@ import {
 Under one lock file (`djdb.lock`, deleted only by its creator):
 
 1. Migrate the main DB, delete leftovers, verify snapshots (file, SHA-256, `quick_check`).
-2. `lb-sync` — listens and love/hate feedback from ListenBrainz.
-3. `match` — recordings (MBID / ISRC / name) and a 60-second cross-via dedup safety net.
+2. `lb-sync` — first run imports a ListenBrainz export (`--export`); later runs fetch only new listens from `GET /1/user/{user}/listens` with `min_ts` set a small overlap before the last fetched `listened_at`. `UNIQUE(source_key)` absorbs the overlap. Paging the whole history through `/listens` happens only with `--listens-full-history`. Love/hate feedback is also pulled here.
+3. `match` — recordings in this order: MBID → ISRC → normalized name. Then a 60-second cross-via dedup safety net. `lb_feedback.track_id` is re-attached via MBID at the end of this stage.
 4. `graph` — ListenBrainz similar-artists, stored as `lb:similar-artists:<algorithm>`.
 5. `popularity` — ListenBrainz artist popularity and top recordings (cached in the snapshot).
 6. If anything changed, or no valid snapshot remains, `VACUUM INTO` a new snapshot, `journal_mode=DELETE`, verify, then register it and clear `dirty` in one commit.
 
 A stage failure when no valid snapshot remains still takes one snapshot from the batch-consistent main DB and `status()` labels it 暫定 (provisional).
+
+## Algorithm parameters (暫定 / provisional)
+
+`recommend()` uses `DEFAULT_PARAMS` in `lib/recommend.mjs`. These values are **暫定 / provisional** and will be tuned after evaluation. The design fixes some of them (α in 0.3–0.5, RRF k=60, top 3 recordings, 180-day era gap, 30-day overlay and miss window); the rest (`beta`, `rho`, `kappa`, `T`, heavy `q`/`m`, and so on) are starting points, not finals. Current starting values: `alpha=0.4`, `beta=0.5`, `rho=0.6`, `kappa=10`, `T=365 days`, `q=20`, `m=3`.
+
+Listens without a ListenBrainz `recording_msid` use `source_key = lb:<listened_at>|nomssid:<hex>`, where `<hex>` is the first 32 hex characters of SHA-256 over `<listened_at>|<normalizeArtist(artist)>|<normalizeTitle(track)>|<normalizeTitle(release)>`.
 
 ## Development
 

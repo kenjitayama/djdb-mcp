@@ -18,7 +18,7 @@ or `npm exec --prefix <dj-mcp> --no -- djdb <command>`.
 It prints JSON with `--json`; on failure it exits 1 and prints `{"error":{code,message,hint}}`.
 
 ## Before anything
-- `no database`: the user must run `djdb init` (ListenBrainz token via `LISTENBRAINZ_TOKEN`) then `djdb refresh`.
+- `no database`: the user must run `djdb init` (ListenBrainz token via `LISTENBRAINZ_TOKEN`) then `djdb refresh --export <listenbrainz-export.json>`. Later refreshes are incremental.
 - `no snapshot` / `schema changed`: run `djdb refresh`.
 - `stale lock`: show the pid and time from `djdb status`, then the user may run `djdb unlock --force`.
 - `main_db_key mismatch`: recommend is disabled; suggest `djdb online-reset` after confirming.

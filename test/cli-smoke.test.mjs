@@ -7,7 +7,6 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runCli } from '../lib/cli.mjs';
 import { mockClient, freshDb, listen } from './helpers.mjs';
-import { refresh } from '../lib/refresh.mjs';
 import { createCore } from '../lib/mcp-core.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url)) + '/..';
@@ -36,7 +35,7 @@ test('CLI init, status, refresh, unlock --force --yes', async () => {
   assert.equal(await runCli(['init', '--user', 'tester'], common), 0);
   assert.equal(existsSync(dbPath), true);
   assert.equal(await runCli(['status', '--json'], common), 1); // no snapshot yet
-  assert.equal(await runCli(['refresh'], common), 0);
+  assert.equal(await runCli(['refresh', '--listens-full-history'], common), 0);
   assert.equal(await runCli(['status', '--json'], common), 0);
   assert.equal(await runCli(['unlock', '--force', '--yes'], common), 0);
   assert.equal(await runCli(['online-reset', '--yes'], common), 0);

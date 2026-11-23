@@ -76,7 +76,7 @@ test('init + refresh with fixture listens publishes a snapshot and recommend ret
   const { handle, paths } = await freshDb({ client });
   try {
     // stamp artist MBIDs after a first match so graph/popularity have something to fetch
-    const r1 = await refresh(handle, { client, skipTokenCheck: true, skipRadio: true });
+    const r1 = await refresh(handle, { client, skipTokenCheck: true, skipRadio: true, listensFullHistory: true });
     assert.equal(r1.ok, true);
     assert.equal(r1.published, true);
     const nPlay = handle.main.prepare(`SELECT count(*) AS n FROM play`).get().n;
@@ -92,7 +92,7 @@ test('init + refresh with fixture listens publishes a snapshot and recommend ret
     client.similar[A_MBID] = [{ artist_mbid: B_MBID, score: 0.8 }];
     client.similar[B_MBID] = [{ artist_mbid: A_MBID, score: 0.8 }];
     handle.main.prepare(`UPDATE meta SET value='1' WHERE key='dirty'`).run();
-    const r2 = await refresh(handle, { client, skipTokenCheck: true });
+    const r2 = await refresh(handle, { client, skipTokenCheck: true, listensFullHistory: true });
     assert.equal(r2.ok, true);
     const edges = handle.main.prepare(`SELECT count(*) AS n FROM edge`).get().n;
     assert.ok(edges >= 2);
@@ -166,7 +166,7 @@ test('fallback snapshot after a failed stage when none is valid is marked provis
   const { handle } = await freshDb({ client: mockClient({ fail: 'listens' }) });
   try {
     // no snapshot yet, lb-sync will fail
-    const r = await refresh(handle, { client: mockClient({ fail: 'listens' }), skipTokenCheck: true });
+    const r = await refresh(handle, { client: mockClient({ fail: 'listens' }), skipTokenCheck: true, listensFullHistory: true });
     assert.equal(r.fallbackSnapshot, true);
     assert.equal(r.provisional, true);
     assert.equal(getMeta(handle.main, 'dirty'), '1');
@@ -183,7 +183,7 @@ test('recordExternalIds unknown_run is non-fatal; online-reset does not reuse ru
   const client = clientFor(listens);
   const { handle, paths, root } = await freshDb({ client });
   try {
-    await refresh(handle, { client, skipTokenCheck: true, skipRadio: true });
+    await refresh(handle, { client, skipTokenCheck: true, skipRadio: true, listensFullHistory: true });
     const rec = await recommend(handle, { mode: 'discover', n: 2, record: true, skipRadio: true, client });
     const staleId = rec.run_id;
     const msg = onlineReset(handle.online, handle.main);
@@ -238,7 +238,7 @@ test('CJK artists merge on normalized name and recommend keeps one track per art
   const client = mockClient({ user: 'tester', listens, tops: {}, similar: {} });
   const { handle } = await freshDb({ client });
   try {
-    const r = await refresh(handle, { client, skipTokenCheck: true, skipRadio: true });
+    const r = await refresh(handle, { client, skipTokenCheck: true, skipRadio: true, listensFullHistory: true });
     assert.equal(r.ok, true);
     const nArtists = handle.main.prepare(`SELECT count(*) AS n FROM artist WHERE merged_into IS NULL`).get().n;
     assert.equal(nArtists, 2);

@@ -14,9 +14,14 @@
 
 ## Init / token
 
-- `LISTENBRAINZ_TOKEN` or the token file is required. The token file is `~/.config/djdb-mcp/lb-token.json`, mode `0600`, and also stores `lb_account_key`.
+- `LISTENBRAINZ_TOKEN` or the token file is required. The token file is `~/.config/djdb-mcp/lb-token.json`, mode `0600`, and also stores `lb_account_key`. Docs show only placeholder values such as `YOUR_LISTENBRAINZ_TOKEN`.
 - The CLI and MCP server never print the token.
 - A username mismatch during `refresh` tells you to run `djdb account-rename`.
+
+## Listen sync
+- First sync requires `--export <file>` (or `LISTENBRAINZ_EXPORT`). Without an export it stops, unless `--listens-full-history` is set explicitly.
+- Later syncs call `/listens` with `min_ts = last_listened_at - 3600` (overlap). `UNIQUE(source_key)` absorbs duplicates. They do not page the whole history.
+- Live ListenBrainz verification is still pending; tests use fixtures and mocks only.
 
 ## Refresh / snapshots
 
@@ -38,9 +43,12 @@
 - Account signup / email confirmation is still outstanding. Do not treat mocked tests as live verification.
 - Confirm: Loved import count vs. 161; whether `created` keeps the original Loved time; LB Radio / popularity endpoints not paused; listen uniqueness key; `listened_at` start vs. end around T0.
 
-## Implementation choices not spelled out in the v11 design
+## Approved implementation notes
 
-- Token file path: `~/.config/djdb-mcp/lb-token.json` (mode 0600).
-- Default algorithm parameters: see `DEFAULT_PARAMS` in `lib/recommend.mjs` (`alpha=0.4`, `beta=0.5`, `rho=0.6`, `kappa=10`, `T=365d`, `q=20`, `m=3`).
-- Standalone MCP tools: `status`, `recommend` (preview, `record: false`), `explain`, `library_stats`.
-- `lb_feedback.track_id` is filled again at the end of the match stage, because feedback is pulled in `lb-sync` before tracks exist.
+- Token file path: `~/.config/djdb-mcp/lb-token.json` (mode 0600). Approved.
+- `DEFAULT_PARAMS` in `lib/recommend.mjs` are 暫定 / provisional and will be tuned after evaluation (`alpha=0.4`, `beta=0.5`, `rho=0.6`, `kappa=10`, `T=365d`, `q=20`, `m=3`).
+- Standalone MCP tools: `status`, `recommend` (preview, `record: false`), `explain`, `library_stats`. Approved.
+- Match order: MBID → ISRC → normalized name. Approved.
+- Missing `recording_msid`: `source_key = lb:<listened_at>|nomssid:<hex>` with the hash defined in `nomssidFrom()`. Approved; covered by a stability test.
+- First listen sync imports a ListenBrainz export; later syncs are `/listens` deltas with overlap. Full `/listens` paging only with `--listens-full-history`. Approved.
+- `lb_feedback.track_id` is re-attached via MBID at the end of match. Approved.

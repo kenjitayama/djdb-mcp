@@ -20,9 +20,21 @@ export function mockClient({ user = 'tester', listens = [], feedback = [], simil
       if (fail === 'token') throw new Error('token failed');
       return { valid: true, user };
     },
-    async *iterListens() {
+    iterCalls: [],
+    lastIterOpts: null,
+    async *iterListens(_user, opts = {}) {
+      this.iterCalls.push(opts);
+      this.lastIterOpts = opts;
       if (fail === 'listens') throw new Error('listens failed');
-      if (listens.length) yield listens;
+      const minTs = opts.minTs ?? opts.min_ts;
+      const maxTs = opts.maxTs ?? opts.max_ts;
+      const filtered = listens.filter((l) => {
+        const ts = Number(l.listened_at);
+        if (minTs != null && ts < Number(minTs)) return false;
+        if (maxTs != null && ts > Number(maxTs)) return false;
+        return true;
+      });
+      if (filtered.length) yield filtered;
     },
     async *iterFeedback() {
       if (fail === 'feedback') throw new Error('feedback failed');
