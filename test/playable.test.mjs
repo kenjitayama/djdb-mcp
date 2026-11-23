@@ -58,3 +58,26 @@ test('#8 a run and its items are written together: a failed item leaves no run',
     handle.close();
   }
 });
+
+test('#12 an ID resolved for one market is not served for another; each market gets its own row', async () => {
+  const { handle } = await library();
+  try {
+    const jp = await recommend(handle, { ...opts, market: 'JP' });
+    const item = jp.items.find((i) => i.recording_mbid === REC_UNKNOWN);
+    recordExternalIds(handle.online, handle.main, jp.run_id, [
+      { rank: item.rank, provider: 'spotify', status: 'ok', extId: 'jp1', playUri: 'spotify:track:jp1', method: 'isrc' },
+    ], { market: 'JP', nowSec: 1234 });
+    const us = await recommend(handle, { ...opts, market: 'US', cutoffAt: 2_000_000_100 });
+    const usItem = us.items.find((i) => i.recording_mbid === REC_UNKNOWN);
+    assert.equal(usItem.playable, null);
+    recordExternalIds(handle.online, handle.main, us.run_id, [
+      { rank: usItem.rank, provider: 'spotify', status: 'ok', extId: 'jp1', playUri: 'spotify:track:jp1', method: 'isrc' },
+    ], { market: 'US', nowSec: 1300 });
+    const rows = handle.online.prepare(`SELECT market, ext_id FROM track_external_id ORDER BY market`).all().map((r) => ({ ...r }));
+    assert.deepEqual(rows, [{ market: 'JP', ext_id: 'jp1' }, { market: 'US', ext_id: 'jp1' }]);
+    const jp2 = await recommend(handle, { ...opts, market: 'JP', cutoffAt: 2_000_000_200 });
+    assert.equal(jp2.items.find((i) => i.recording_mbid === REC_UNKNOWN).playable.ext_id, 'jp1');
+  } finally {
+    handle.close();
+  }
+});

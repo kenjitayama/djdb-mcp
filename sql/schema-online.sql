@@ -27,9 +27,9 @@ CREATE TABLE track_external_id (
   method      TEXT NOT NULL,
   verified_at INTEGER,
   CHECK (recording_mbid IS NOT NULL OR isrc IS NOT NULL),
-  PRIMARY KEY (provider, ext_id)
+  PRIMARY KEY (provider, market, ext_id)
 ) STRICT, WITHOUT ROWID;
-CREATE INDEX track_external_id_t ON track_external_id(track_id, provider);
+CREATE INDEX track_external_id_t ON track_external_id(track_id, provider, market);
 
 -- Negative cache: only a successful search with 0 results. next_try_at = tried_at + 30 days.
 CREATE TABLE track_resolve_miss (
