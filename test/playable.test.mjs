@@ -2,6 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { library, REC_UNKNOWN } from './library.mjs';
+import * as H from './helpers.mjs';
 import { recommend } from '../lib/recommend.mjs';
 import { recordExternalIds, explain } from '../lib/online.mjs';
 
@@ -77,6 +78,30 @@ test('#12 an ID resolved for one market is not served for another; each market g
     assert.deepEqual(rows, [{ market: 'JP', ext_id: 'jp1' }, { market: 'US', ext_id: 'jp1' }]);
     const jp2 = await recommend(handle, { ...opts, market: 'JP', cutoffAt: 2_000_000_200 });
     assert.equal(jp2.items.find((i) => i.recording_mbid === REC_UNKNOWN).playable.ext_id, 'jp1');
+  } finally {
+    handle.close();
+  }
+});
+
+test('an item with no recording MBID or ISRC gets its play target on the run, but no cache row', async () => {
+  const later = [];
+  for (let i = 0; i < 30; i++) later.push(H.listen({ at: 1_760_000_000 + i * 86400, msid: `l${i}`, artist: 'Later', title: `L${i % 2}` }));
+  const { handle } = await library({ extraListens: later });
+  try {
+    const r = await recommend(handle, { mode: 'rediscover', n: 5, record: true, cutoffAt: 1_763_456_000 });
+    const noId = r.items.find((i) => !i.recording_mbid && !i.isrc);
+    assert.ok(noId, JSON.stringify(r.items));
+    const ok = recordExternalIds(handle.online, r.run_id, [
+      { rank: noId.rank, provider: 'spotify', status: 'ok', extId: 'n1', playUri: 'spotify:track:n1', method: 'name' },
+    ], { market: 'JP', nowSec: 1234 });
+    assert.equal(ok.ok, true);
+    assert.match(ok.log.join(';'), /not cached: rank \d+ has no recording MBID or ISRC/);
+    assert.deepEqual(playableOf(handle.online, r.run_id).map((p) => [p.rank, p.ext_id, p.resolved_by]), [[noId.rank, 'n1', 'client']]);
+    assert.equal(handle.online.prepare('SELECT count(*) AS n FROM track_external_id').get().n, 0);
+    const miss = recordExternalIds(handle.online, r.run_id, [{ rank: noId.rank, provider: 'spotify', status: 'not_found' }], { market: 'US' });
+    assert.equal(miss.ok, true);
+    assert.equal(handle.online.prepare('SELECT count(*) AS n FROM track_resolve_miss').get().n, 0);
+    assert.equal(handle.online.isTransaction, false);
   } finally {
     handle.close();
   }

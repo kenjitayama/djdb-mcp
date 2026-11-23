@@ -130,7 +130,7 @@ import {
 Nothing else in `lib/` is public.
 
 - `recommend(handle, { mode, n, provider, market, seeds, record, cutoffAt })`. `mode` is `discover` or `rediscover` (see below). `record: false` is a dry run that writes nothing (the standalone MCP server uses it). A recorded run and its items are written in one transaction. Seeds are `{ mbid }` or `{ name }`. A seed with a name and a Spotify URI resolves by the name; a seed with only a URI comes back in `unresolved` with `uri_not_resolved`.
-- `recordExternalIds(online, runId, items, { market })` stores the playback IDs dj-mcp found for a run's items. The ID cache is per market: an ID found for `JP` is not served for `US`.
+- `recordExternalIds(online, runId, items, { market })` stores the playback IDs dj-mcp found for a run's items. The ID cache is per market: an ID found for `JP` is not served for `US`. An item with neither a recording MBID nor an ISRC is not cached (hit or miss); its play target is still stored on the run.
 - `recordEvent(online, runId, rank, kind)`. If `runId` is missing or unknown, nothing is written and `{ error: 'unknown_run' }` is returned (non-fatal for dj-mcp).
 - `explain(online, runId)` returns the run's parameters and items.
 

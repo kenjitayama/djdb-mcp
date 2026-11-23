@@ -10,7 +10,7 @@ Removed:
 
 Changed:
 - Readers use `openReader()`; `open()` is no longer exported. The online DB is created only by `openReader({ online: 'write' })`, binds to the main DB, and is never reset automatically.
-- `recordExternalIds(online, runId, items, opts)` no longer takes the main DB. A run item stores where it can be played.
+- `recordExternalIds(online, runId, items, opts)` no longer takes the main DB. A run item stores where it can be played. Items with neither a recording MBID nor an ISRC are stored on the run but not cached.
 - `djdb refresh --export <dir>` takes the extracted export folder. The first sync needs it, and an import that stopped midway must be finished with the same export.
 - `djdb unlock` checks the lock's pid and never asks.
 
