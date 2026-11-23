@@ -46,8 +46,7 @@ CREATE TABLE track_resolve_miss (
   CHECK (recording_mbid IS NOT NULL OR isrc IS NOT NULL)
 ) STRICT, WITHOUT ROWID;
 
--- Online runs only (eval results go to eval/*.json). fetched_json keeps the LB Radio / top-recordings
--- responses used by the run.
+-- Online runs only (eval results go to eval/*.json). fetched_json is unused.
 CREATE TABLE rec_run (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,  -- resets never clear sqlite_sequence: run ids are never reused
   created_at      INTEGER NOT NULL,

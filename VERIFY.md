@@ -40,7 +40,7 @@
 ## Live ListenBrainz (pending)
 
 - Account signup / email confirmation is still outstanding. Do not treat mocked tests as live verification.
-- Confirm: Loved import count vs. 161; whether `created` keeps the original Loved time; LB Radio / popularity endpoints not paused; listen uniqueness key; `listened_at` start vs. end around T0.
+- Confirm: Loved import count vs. 161; whether `created` keeps the original Loved time; popularity endpoints not paused; listen uniqueness key; `listened_at` start vs. end around T0.
 
 ## Approved implementation notes
 

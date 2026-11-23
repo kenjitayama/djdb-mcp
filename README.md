@@ -119,7 +119,7 @@ import {
 } from '@kenjitayama/djdb-mcp';
 ```
 
-- `recommend({ mode, n, provider, market, randomSeed, seeds, record })` — `mode` is `discover` or `rediscover`. Pass `record: false` for a dry run (used by the standalone MCP server). Seeds are `{ mbid }` or `{ name }`; Spotify artist URIs must be resolved to a name by dj-mcp first.
+- `recommend({ mode, n, provider, market, seeds, record })` — `mode` is `discover` or `rediscover`. Pass `record: false` for a dry run (used by the standalone MCP server). Seeds are `{ mbid }` or `{ name }`; Spotify artist URIs must be resolved to a name by dj-mcp first.
 - `recordEvent(online, runId, rank, kind)` — if `runId` is missing or unknown, nothing is written and `{ error: 'unknown_run' }` is returned (non-fatal for dj-mcp).
 - `explain(online, main, runId)` — `{ status: 'deleted' }` if the run's snapshot was cleaned up.
 
@@ -140,7 +140,7 @@ A stage failure when no valid snapshot remains still takes one snapshot from the
 
 ## Algorithm parameters (暫定 / provisional)
 
-`recommend()` uses `DEFAULT_PARAMS` in `lib/recommend.mjs`. These values are **暫定 / provisional** and will be tuned after evaluation. The design fixes some of them (α in 0.3–0.5, RRF k=60, top 3 recordings, 180-day era gap, 30-day overlay and miss window); the rest (`beta`, `rho`, `kappa`, `T`, heavy `q`/`m`, and so on) are starting points, not finals. Current starting values: `alpha=0.4`, `beta=0.5`, `rho=0.6`, `kappa=10`, `T=365 days`, `q=20`, `m=3`.
+`recommend()` uses `DEFAULT_PARAMS` in `lib/recommend.mjs`. These values are **暫定 / provisional** and will be tuned after evaluation. The design fixes some of them (α in 0.3–0.5, top 3 recordings, 180-day era gap, 30-day overlay and miss window); the rest (`beta`, `rho`, `kappa`, `T`, heavy `q`/`m`, and so on) are starting points, not finals. Current starting values: `alpha=0.4`, `beta=0.5`, `rho=0.6`, `kappa=10`, `T=365 days`, `q=20`, `m=3`.
 
 Listens without a ListenBrainz `recording_msid` use `source_key = lb:<listened_at>|nomssid:<hex>`, where `<hex>` is the first 32 hex characters of SHA-256 over `<listened_at>|<normalizeArtist(artist)>|<normalizeTitle(track)>|<normalizeTitle(release)>`.
 

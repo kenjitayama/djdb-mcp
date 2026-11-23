@@ -147,7 +147,7 @@ test('#1 unlock removes a lock whose pid is gone, without a prompt', { todo: 'J4
 test('#2 discover returns catalog recordings the user has never played', { todo: 'J17b, J18' }, async () => {
   const { handle } = await library();
   const cutoff = 2_000_000_000;
-  const r = await recommend(handle, { mode: 'discover', n: 10, record: false, skipRadio: true, cutoffAt: cutoff });
+  const r = await recommend(handle, { mode: 'discover', n: 10, record: false, cutoffAt: cutoff });
   assert.ok(mbids(r).includes(REC_UNKNOWN), JSON.stringify(mbids(r)));
   for (const it of r.items) {
     const played = handle.main.prepare('SELECT count(*) AS n FROM play WHERE track_id=? AND played_at < ?').get(it.track_id, cutoff).n;
@@ -163,7 +163,7 @@ test('#13 evaluation at cutoff_at ignores hates and plays from after the cutoff'
       feedback: [{ recording_mbid: REC_UNKNOWN, score: -1, created: hateCreated }],
       extraListens: [laterPlay],
     });
-    return mbids(await recommend(handle, { mode: 'discover', n: 10, record: false, skipRadio: true, cutoffAt: cutoff, eval: true }));
+    return mbids(await recommend(handle, { mode: 'discover', n: 10, record: false, cutoffAt: cutoff, eval: true }));
   };
   assert.ok((await run(1_900_000_000)).includes(REC_UNKNOWN), 'a hate and a play after the cutoff must not hide the recording');
   assert.ok(!(await run(1_750_000_000)).includes(REC_UNKNOWN), 'a hate before the cutoff hides it');
@@ -171,7 +171,7 @@ test('#13 evaluation at cutoff_at ignores hates and plays from after the cutoff'
 
 test('#4 a seed with both a name and a Spotify URI resolves by name', { todo: 'J19' }, async () => {
   const { handle } = await library();
-  const r = await recommend(handle, { mode: 'discover', n: 5, record: false, skipRadio: true, seeds: [{ name: 'Light', uri: 'spotify:artist:abc' }] });
+  const r = await recommend(handle, { mode: 'discover', n: 5, record: false, seeds: [{ name: 'Light', uri: 'spotify:artist:abc' }] });
   assert.deepEqual(r.unresolved, []);
 });
 

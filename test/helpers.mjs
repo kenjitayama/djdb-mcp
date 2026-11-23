@@ -9,12 +9,11 @@ export function tmpRoot(prefix = 'djdb-') {
   return mkdtempSync(join(tmpdir(), prefix));
 }
 
-export function mockClient({ user = 'tester', listens = [], feedback = [], similar = {}, popularity = [], tops = {}, radio = {}, fail } = {}) {
+export function mockClient({ user = 'tester', listens = [], feedback = [], similar = {}, popularity = [], tops = {}, fail } = {}) {
   return {
     similar,
     popularity,
     tops,
-    radio,
     similarAlgorithm: 'test-algo',
     async validateToken() {
       if (fail === 'token') throw new Error('token failed');
@@ -52,10 +51,6 @@ export function mockClient({ user = 'tester', listens = [], feedback = [], simil
     async topRecordingsForArtist(mbid) {
       if (fail === 'tops') throw Object.assign(new Error('tops failed'), { status: 503 });
       return tops[mbid] || [];
-    },
-    async lbRadioArtist(mbid) {
-      if (fail === 'radio') throw Object.assign(new Error('radio failed'), { status: 503 });
-      return radio[mbid] || {};
     },
   };
 }

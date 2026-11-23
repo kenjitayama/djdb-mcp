@@ -76,7 +76,7 @@ test('init + refresh with fixture listens publishes a snapshot and recommend ret
   const { handle, paths } = await freshDb({ client });
   try {
     // stamp artist MBIDs after a first match so graph/popularity have something to fetch
-    const r1 = await refresh(handle, { client, skipTokenCheck: true, skipRadio: true, listensFullHistory: true });
+    const r1 = await refresh(handle, { client, skipTokenCheck: true, listensFullHistory: true });
     assert.equal(r1.ok, true);
     assert.equal(r1.published, true);
     const nPlay = handle.main.prepare(`SELECT count(*) AS n FROM play`).get().n;
@@ -102,7 +102,7 @@ test('init + refresh with fixture listens publishes a snapshot and recommend ret
     assert.ok(st.snapshot?.id);
     assert.equal(st.provisional, false);
 
-    const rec = await recommend(handle, { mode: 'discover', n: 5, record: true, skipRadio: true, client });
+    const rec = await recommend(handle, { mode: 'discover', n: 5, record: true, client });
     assert.ok(rec.items.length >= 1, 'expected recommend items, got ' + JSON.stringify(rec));
     assert.ok(rec.run_id > 0);
     assert.ok(rec.items[0].recording_mbid || rec.items[0].title);
@@ -110,7 +110,7 @@ test('init + refresh with fixture listens publishes a snapshot and recommend ret
     assert.ok(!rec.items.some((it) => it.recording_mbid === T3), 'hated recording should be excluded');
     // standalone preview does not write a new run if record:false
     const before = rec.run_id;
-    const preview = await recommend(handle, { mode: 'discover', n: 5, record: false, skipRadio: true, client });
+    const preview = await recommend(handle, { mode: 'discover', n: 5, record: false, client });
     const maxRun = handle.online.prepare(`SELECT max(id) AS m FROM rec_run`).get().m;
     assert.equal(maxRun, before);
     assert.equal(preview.run_id, null);
@@ -123,6 +123,28 @@ test('init + refresh with fixture listens publishes a snapshot and recommend ret
     const expl = explain(handle.online, handle.main, rec.run_id);
     assert.equal(expl.status, 'ok');
   } finally {
+    handle.close();
+  }
+});
+
+test('recommend makes no network calls, even when it records a run', async () => {
+  const client = clientFor(baseListens());
+  const { handle } = await freshDb({ client });
+  const saved = globalThis.fetch;
+  let calls = 0;
+  const deny = async () => { calls++; throw new Error('network is off'); };
+  try {
+    await refresh(handle, { client, skipTokenCheck: true, listensFullHistory: true });
+    handle.main.prepare(`UPDATE artist SET mbid=? WHERE name='Alpha'`).run(A_MBID);
+    handle.main.prepare(`UPDATE artist SET mbid=? WHERE name='Beta'`).run(B_MBID);
+    await refresh(handle, { client, skipTokenCheck: true });
+    globalThis.fetch = deny;
+    const rec = await recommend(handle, { mode: 'discover', n: 2, record: true, fetch: deny });
+    assert.ok(rec.run_id > 0, JSON.stringify(rec));
+    assert.ok(rec.items.length >= 1, JSON.stringify(rec));
+    assert.equal(calls, 0);
+  } finally {
+    globalThis.fetch = saved;
     handle.close();
   }
 });
@@ -183,12 +205,12 @@ test('recordExternalIds unknown_run is non-fatal; online-reset does not reuse ru
   const client = clientFor(listens);
   const { handle, paths, root } = await freshDb({ client });
   try {
-    await refresh(handle, { client, skipTokenCheck: true, skipRadio: true, listensFullHistory: true });
-    const rec = await recommend(handle, { mode: 'discover', n: 2, record: true, skipRadio: true, client });
+    await refresh(handle, { client, skipTokenCheck: true, listensFullHistory: true });
+    const rec = await recommend(handle, { mode: 'discover', n: 2, record: true, client });
     const staleId = rec.run_id;
     const msg = onlineReset(handle.online, handle.main);
     assert.match(msg.message, /restart/);
-    const again = await recommend(handle, { mode: 'discover', n: 2, record: true, skipRadio: true, client });
+    const again = await recommend(handle, { mode: 'discover', n: 2, record: true, client });
     assert.ok(again.run_id > staleId, `expected ${again.run_id} > ${staleId}`);
     const bad = recordExternalIds(handle.online, handle.main, staleId, [{ rank: 1, provider: 'spotify', status: 'ok', extId: 'zzz', playUri: 'spotify:track:zzz' }]);
     assert.equal(bad.error, 'unknown_run');
@@ -215,7 +237,7 @@ test('name seed that hits several aliases is ambiguous', async () => {
   try {
     handle.main.exec(`INSERT INTO artist (name) VALUES ('A'),('B')`);
     handle.main.exec(`INSERT INTO artist_alias (alias_norm, artist_id, source, norm_version) VALUES ('the a',1,'lb',1),('the a',2,'lb',1)`);
-    const rec = await recommend(handle, { mode: 'discover', n: 1, record: false, skipRadio: true, seeds: [{ name: 'The A' }] });
+    const rec = await recommend(handle, { mode: 'discover', n: 1, record: false, seeds: [{ name: 'The A' }] });
     // no snapshot yet
     if (rec.unresolved) {
       assert.ok(rec.unresolved.some((u) => u.reason === 'ambiguous') || rec.reason);
@@ -238,11 +260,11 @@ test('CJK artists merge on normalized name and recommend keeps one track per art
   const client = mockClient({ user: 'tester', listens, tops: {}, similar: {} });
   const { handle } = await freshDb({ client });
   try {
-    const r = await refresh(handle, { client, skipTokenCheck: true, skipRadio: true, listensFullHistory: true });
+    const r = await refresh(handle, { client, skipTokenCheck: true, listensFullHistory: true });
     assert.equal(r.ok, true);
     const nArtists = handle.main.prepare(`SELECT count(*) AS n FROM artist WHERE merged_into IS NULL`).get().n;
     assert.equal(nArtists, 2);
-    const rec = await recommend(handle, { mode: 'rediscover', n: 10, record: false, skipRadio: true, client });
+    const rec = await recommend(handle, { mode: 'rediscover', n: 10, record: false, client });
     const credits = rec.items.map((i) => i.artist_credit);
     assert.equal(new Set(credits).size, credits.length, 'one track per artist, got ' + JSON.stringify(credits));
   } finally {

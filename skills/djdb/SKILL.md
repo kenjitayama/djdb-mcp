@@ -27,7 +27,7 @@ It prints JSON with `--json`; on failure it exits 1 and prints `{"error":{code,m
 ## What to call
 - Health / "is the library ready?" → `status` (or `djdb status --json`).
 - Counts of plays, artists, tracks → `status` (the `counts` field).
-- "Recommend something" / discover vs. rediscover → `recommend` with `mode` and optional `n`, `seeds`, `randomSeed`. The standalone server returns recording MBIDs and ISRCs only and does not record the run. Playback IDs are dj-mcp's job.
+- "Recommend something" / discover vs. rediscover → `recommend` with `mode` and optional `n`, `seeds`. The standalone server returns recording MBIDs and ISRCs only and does not record the run. Playback IDs are dj-mcp's job.
 - Explain a run that dj-mcp recorded → `explain { run_id }`. `status: "deleted"` means the snapshot was cleaned up.
 
 ## Rules

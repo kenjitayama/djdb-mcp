@@ -157,7 +157,7 @@ CREATE TABLE lb_feedback (
 ) STRICT, WITHOUT ROWID;
 CREATE INDEX lb_feedback_track ON lb_feedback(track_id) WHERE track_id IS NOT NULL;
 
--- Refresh-time HTTP cache only (similar artists, popularity, MB lookups). Online fetches go to rec_run.fetched_json.
+-- Refresh-time HTTP cache only (similar artists, popularity, top recordings). recommend() makes no network calls.
 CREATE TABLE fetch_cache (
   endpoint      TEXT NOT NULL,
   key           TEXT NOT NULL,
