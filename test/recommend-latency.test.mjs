@@ -437,3 +437,86 @@ test('rediscover keeps artists with 0 or 1 latest-era plays and drops the rest',
     handle.close();
   }
 });
+
+function eligibleArtist(db, fx, key, { name, at, titles }) {
+  const artistMbid = fx.nextMbid();
+  const artistId = addArtist(db, { name, artistMbid });
+  const played = addTrack(db, { title: `${name} played`, titleNorm: `${name} played`, artistId, trackMbid: fx.nextMbid() });
+  addPlay(db, key, { at, artistId, trackId: played, title: `${name} played` });
+  const tops = titles.map((title) => {
+    const trackMbid = fx.nextMbid();
+    const trackId = addTrack(db, { title, titleNorm: title, artistId, trackMbid });
+    return { trackId, trackMbid, title };
+  });
+  cacheTops(db, artistMbid, tops.map((t) => t.trackMbid));
+  return { artistId, tops };
+}
+
+function impress(online, { at, artistId, trackId, titleNorm }) {
+  const run = online.prepare(
+    `INSERT INTO rec_run (created_at, mode, algo_version, params_hash, params_json) VALUES (?,?,?,?,?)`,
+  ).run(at, 'discover', 'v11', 'hash', '{}');
+  const runId = Number(run.lastInsertRowid);
+  online.prepare(
+    `INSERT INTO rec_item (run_id, rank, artist_id, track_id, title_norm, score) VALUES (?,?,?,?,?,?)`,
+  ).run(runId, 1, artistId, trackId, titleNorm, 1);
+  online.prepare(`INSERT INTO rec_event (run_id, rank, kind, at) VALUES (?,?,?,?)`).run(runId, 1, 'impression', at);
+}
+
+test('a fractional n returns floor(2*n) items', async () => {
+  const { handle } = await H.freshDb();
+  const db = handle.main;
+  const fx = fixture();
+  try {
+    for (let i = 0; i < 6; i++) {
+      eligibleArtist(db, fx, fx.key, { name: `N ${i}`, at: CUTOFF - 1 - i, titles: [`fresh ${i}`] });
+    }
+    const opts = { mode: 'discover', record: false, cutoffAt: CUTOFF };
+    const two = await recommend(handle, { ...opts, n: 1.3 });
+    const four = await recommend(handle, { ...opts, n: 2.25 });
+    assert.equal(two.items.length, 2);
+    assert.equal(four.items.length, 4);
+  } finally {
+    handle.close();
+  }
+});
+
+test('a recent impression hides that track and the artist falls through to the next one', async () => {
+  const { handle } = await H.freshDb();
+  const db = handle.main;
+  const fx = fixture();
+  try {
+    const artist = eligibleArtist(db, fx, fx.key, { name: 'Shown', at: CUTOFF - 2, titles: ['shown', 'next'] });
+    impress(handle.online, { at: CUTOFF - 1, artistId: artist.artistId, trackId: artist.tops[0].trackId, titleNorm: 'shown' });
+    const rec = await recommend(handle, { mode: 'discover', n: 5, record: false, cutoffAt: CUTOFF });
+    assert.deepEqual(rec.items.map((it) => it.recording_mbid), [artist.tops[1].trackMbid]);
+    assert.equal(rec.items[0].artist_id, artist.artistId);
+  } finally {
+    handle.close();
+  }
+});
+
+test('eval ignores a recent impression and an active miss', async () => {
+  const { handle } = await H.freshDb();
+  const db = handle.main;
+  const fx = fixture();
+  try {
+    const artist = eligibleArtist(db, fx, fx.key, { name: 'Held', at: CUTOFF - 2, titles: ['held', 'later'] });
+    const top = artist.tops[0];
+    impress(handle.online, { at: CUTOFF - 1, artistId: artist.artistId, trackId: top.trackId, titleNorm: 'held' });
+    handle.online.prepare(
+      `INSERT INTO track_resolve_miss (track_id, recording_mbid, isrc, title_norm, provider, market, tried_at, next_try_at)
+       VALUES (?,?,?,?,?,?,?,?)`,
+    ).run(top.trackId, top.trackMbid, null, 'held', 'spotify', 'JP', 1, CUTOFF + 10);
+    const opts = { mode: 'discover', n: 5, record: false, cutoffAt: CUTOFF, provider: 'spotify', market: 'JP' };
+    const hidden = await recommend(handle, opts);
+    assert.deepEqual(hidden.items.map((it) => it.recording_mbid), [artist.tops[1].trackMbid]);
+    const seen = spyStatements(handle.online);
+    const open = await recommend(handle, { ...opts, eval: true });
+    assert.deepEqual(open.items.map((it) => it.recording_mbid), [top.trackMbid]);
+    assert.equal(seen.count(seen.prepare, 'FROM track_external_id'), 0);
+    assert.equal(seen.count(seen.prepare, 'FROM track_resolve_miss'), 0);
+  } finally {
+    handle.close();
+  }
+});
