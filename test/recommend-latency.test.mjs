@@ -56,11 +56,14 @@ function spyStatements(db) {
   db.prepare = (sql) => {
     prepare.push(sql);
     const stmt = orig(sql);
-    return {
+    const wrapped = {
       get: (...args) => { get.push(sql); return stmt.get(...args); },
       all: (...args) => { all.push(sql); return stmt.all(...args); },
       run: (...args) => stmt.run(...args),
+      // loadGraph reads edge rows as arrays. Forward the flag to the real statement.
+      setReturnArrays: (on) => { stmt.setReturnArrays(on); return wrapped; },
     };
+    return wrapped;
   };
   const count = (bucket, needle) => bucket.filter((sql) => sql.includes(needle)).length;
   return { prepare, get, all, count };
